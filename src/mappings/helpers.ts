@@ -7,7 +7,7 @@ import { User, Bundle, Token, LiquidityPosition, LiquidityPositionSnapshot, Pair
 import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
+export const FACTORY_ADDRESS = '0xA818b4F111Ccac7AA31D0BCc0806d64F2E0737D7'
 
 export let ZERO_BI = BigInt.fromI32(0)
 export let ONE_BI = BigInt.fromI32(1)
@@ -81,11 +81,6 @@ export function fetchTokenSymbol(tokenAddress: Address): string {
 }
 
 export function fetchTokenName(tokenAddress: Address): string {
-  // hard coded override
-  if (tokenAddress.toHexString() == '0xe0b7927c4af23765cb51314a0e0521a9645f0e2a') {
-    return 'DGD'
-  }
-
   let contract = ERC20.bind(tokenAddress)
   let contractNameBytes = ERC20NameBytes.bind(tokenAddress)
 
