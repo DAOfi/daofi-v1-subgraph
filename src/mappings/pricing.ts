@@ -3,7 +3,7 @@ import { Pair, Token, Bundle } from '../types/schema'
 import { BigDecimal, Address, BigInt } from '@graphprotocol/graph-ts/index'
 import { ZERO_BD, factoryContract, ADDRESS_ZERO, ONE_BD } from './helpers'
 
-const WXDAI_ADDRESS = '0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d'
+const WXDAI_ADDRESS = '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d'
 
 export function getEthPriceInUSD(): BigDecimal {
   return ONE_BD
@@ -12,7 +12,7 @@ export function getEthPriceInUSD(): BigDecimal {
 // token where amounts should contribute to tracked volume and liquidity
 let WHITELIST: string[] = [
   '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9', // HONEY
-  '0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d' // WXDAI
+  '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d' // WXDAI
 ]
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
