@@ -12,7 +12,10 @@ export function getEthPriceInUSD(): BigDecimal {
 // token where amounts should contribute to tracked volume and liquidity
 let WHITELIST: string[] = [
   '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9', // HONEY
-  '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d' // WXDAI
+  '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // WXDAI
+  '0xddafbb505ad214d7b80b1f830fccc89b60fb7a83', // USDC on xDai
+  '0x4ecaba5870353805a9f068101a40e0f32ed605c6', // Tether on xDai
+  '0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1' // Wrapped Ether on xDai
 ]
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
