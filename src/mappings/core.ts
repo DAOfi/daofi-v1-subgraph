@@ -13,7 +13,7 @@ import {
   Bundle
 } from '../types/schema'
 import { Pair as PairContract, Swap, Deposit, Withdraw, WithdrawFees } from '../types/templates/Pair/Pair'
-import { updatePairDayData, updateTokenDayData, updateUniswapDayData, updatePairHourData } from './dayUpdates'
+import { updatePairDayData, updateTokenDayData, updateDAOfiDayData, updatePairHourData } from './dayUpdates'
 import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
 import {
   convertTokenToDecimal,
@@ -83,17 +83,17 @@ export function handleSwap(event: Swap): void {
   pair.save()
 
   // update global values, only used tracked amounts for volume
-  let uniswap = DAOfiFactory.load(FACTORY_ADDRESS)
-  uniswap.totalVolumeUSD = uniswap.totalVolumeUSD.plus(trackedAmountUSD)
-  uniswap.totalVolumeETH = uniswap.totalVolumeETH.plus(trackedAmountETH)
-  uniswap.untrackedVolumeUSD = uniswap.untrackedVolumeUSD.plus(derivedAmountUSD)
-  uniswap.txCount = uniswap.txCount.plus(ONE_BI)
+  let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
+  daofi.totalVolumeUSD = daofi.totalVolumeUSD.plus(trackedAmountUSD)
+  daofi.totalVolumeETH = daofi.totalVolumeETH.plus(trackedAmountETH)
+  daofi.untrackedVolumeUSD = daofi.untrackedVolumeUSD.plus(derivedAmountUSD)
+  daofi.txCount = daofi.txCount.plus(ONE_BI)
 
   // save entities
   pair.save()
   token0.save()
   token1.save()
-  uniswap.save()
+  daofi.save()
 
   let transaction = Transaction.load(event.transaction.hash.toHexString())
   if (transaction === null) {
@@ -136,7 +136,7 @@ export function handleSwap(event: Swap): void {
   // update day entities
   updatePairDayData(event)
   updatePairHourData(event)
-  updateUniswapDayData(event)
+  updateDAOfiDayData(event)
   updateTokenDayData(token0 as Token, event)
   updateTokenDayData(token1 as Token, event)
 
@@ -205,10 +205,10 @@ export function handleSwap(event: Swap): void {
   let pair = Pair.load(event.address.toHex())
   let token0 = Token.load(pair.token0)
   let token1 = Token.load(pair.token1)
-  let uniswap = DAOfiFactory.load(FACTORY_ADDRESS)
+  let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
 
   // reset factory liquidity by subtracting onluy tarcked liquidity
-  uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.minus(pair.trackedReserveETH as BigDecimal)
+  daofi.totalLiquidityETH = daofi.totalLiquidityETH.minus(pair.trackedReserveETH as BigDecimal)
 
   // reset token total liquidity amounts
   token0.totalLiquidity = token0.totalLiquidity.minus(pair.reserve0)
@@ -256,8 +256,8 @@ export function handleSwap(event: Swap): void {
   pair.reserveUSD = pair.reserveETH.times(bundle.ethPrice)
 
   // use tracked amounts globally
-  uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.plus(trackedLiquidityETH)
-  uniswap.totalLiquidityUSD = uniswap.totalLiquidityETH.times(bundle.ethPrice)
+  daofi.totalLiquidityETH = daofi.totalLiquidityETH.plus(trackedLiquidityETH)
+  daofi.totalLiquidityUSD = daofi.totalLiquidityETH.times(bundle.ethPrice)
 
   // now correctly set liquidity amounts for each token
   token0.totalLiquidity = token0.totalLiquidity.plus(pair.reserve0)
@@ -265,7 +265,7 @@ export function handleSwap(event: Swap): void {
 
   // save entities
   pair.save()
-  uniswap.save()
+  daofi.save()
   token0.save()
   token1.save()
 }
@@ -276,7 +276,7 @@ export function handleDeposit(event: Deposit): void {
   let mint = MintEvent.load(mints[mints.length - 1])
 
   let pair = Pair.load(event.address.toHex())
-  let uniswap = DAOfiFactory.load(FACTORY_ADDRESS)
+  let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
 
   let token0 = Token.load(pair.token0)
   let token1 = Token.load(pair.token1)
@@ -298,13 +298,13 @@ export function handleDeposit(event: Deposit): void {
 
   // update txn counts
   pair.txCount = pair.txCount.plus(ONE_BI)
-  uniswap.txCount = uniswap.txCount.plus(ONE_BI)
+  daofi.txCount = daofi.txCount.plus(ONE_BI)
 
   // save entities
   token0.save()
   token1.save()
   pair.save()
-  uniswap.save()
+  daofi.save()
 
   mint.sender = event.params.sender
   mint.amount0 = token0Amount as BigDecimal
@@ -320,7 +320,7 @@ export function handleDeposit(event: Deposit): void {
   // update day entities
   updatePairDayData(event)
   updatePairHourData(event)
-  updateUniswapDayData(event)
+  updateDAOfiDayData(event)
   updateTokenDayData(token0 as Token, event)
   updateTokenDayData(token1 as Token, event)
 }
@@ -331,7 +331,7 @@ export function handleWithdraw(event: Withdraw): void {
   let burn = BurnEvent.load(burns[burns.length - 1])
 
   let pair = Pair.load(event.address.toHex())
-  let uniswap = DAOfiFactory.load(FACTORY_ADDRESS)
+  let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
 
   //update token info
   let token0 = Token.load(pair.token0)
@@ -351,14 +351,14 @@ export function handleWithdraw(event: Withdraw): void {
     .times(bundle.ethPrice)
 
   // update txn counts
-  uniswap.txCount = uniswap.txCount.plus(ONE_BI)
+  daofi.txCount = daofi.txCount.plus(ONE_BI)
   pair.txCount = pair.txCount.plus(ONE_BI)
 
   // update global counter and save
   token0.save()
   token1.save()
   pair.save()
-  uniswap.save()
+  daofi.save()
 
   // update burn
   // burn.sender = event.params.sender
@@ -376,7 +376,7 @@ export function handleWithdraw(event: Withdraw): void {
   // update day entities
   updatePairDayData(event)
   updatePairHourData(event)
-  updateUniswapDayData(event)
+  updateDAOfiDayData(event)
   updateTokenDayData(token0 as Token, event)
   updateTokenDayData(token1 as Token, event)
 }
@@ -387,7 +387,7 @@ export function handleWithdrawFees(event: WithdrawFees): void {
   let burn = BurnEvent.load(burns[burns.length - 1])
 
   let pair = Pair.load(event.address.toHex())
-  let uniswap = DAOfiFactory.load(FACTORY_ADDRESS)
+  let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
 
   //update token info
   let token0 = Token.load(pair.token0)
@@ -407,14 +407,14 @@ export function handleWithdrawFees(event: WithdrawFees): void {
     .times(bundle.ethPrice)
 
   // update txn counts
-  uniswap.txCount = uniswap.txCount.plus(ONE_BI)
+  daofi.txCount = daofi.txCount.plus(ONE_BI)
   pair.txCount = pair.txCount.plus(ONE_BI)
 
   // update global counter and save
   token0.save()
   token1.save()
   pair.save()
-  uniswap.save()
+  daofi.save()
 
   // update burn
   // burn.sender = event.params.sender
@@ -432,7 +432,7 @@ export function handleWithdrawFees(event: WithdrawFees): void {
   // update day entities
   updatePairDayData(event)
   updatePairHourData(event)
-  updateUniswapDayData(event)
+  updateDAOfiDayData(event)
   updateTokenDayData(token0 as Token, event)
   updateTokenDayData(token1 as Token, event)
 }

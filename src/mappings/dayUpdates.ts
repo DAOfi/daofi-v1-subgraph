@@ -4,8 +4,8 @@ import { BigInt, BigDecimal, EthereumEvent } from '@graphprotocol/graph-ts'
 import { Pair, Bundle, Token, DAOfiFactory, DAOfiDayData, PairDayData, TokenDayData } from '../types/schema'
 import { ONE_BI, ZERO_BD, ZERO_BI, FACTORY_ADDRESS } from './helpers'
 
-export function updateUniswapDayData(event: EthereumEvent): void {
-  let uniswap = DAOfiFactory.load(FACTORY_ADDRESS)
+export function updateDAOfiDayData(event: EthereumEvent): void {
+  let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
   let dayStartTimestamp = dayID * 86400
@@ -24,9 +24,9 @@ export function updateUniswapDayData(event: EthereumEvent): void {
     daofiDayData.save()
   }
   daofiDayData = DAOfiDayData.load(dayID.toString())
-  daofiDayData.totalLiquidityUSD = uniswap.totalLiquidityUSD
-  daofiDayData.totalLiquidityETH = uniswap.totalLiquidityETH
-  daofiDayData.txCount = uniswap.txCount
+  daofiDayData.totalLiquidityUSD = daofi.totalLiquidityUSD
+  daofiDayData.totalLiquidityETH = daofi.totalLiquidityETH
+  daofiDayData.txCount = daofi.txCount
   daofiDayData.save()
 }
 
