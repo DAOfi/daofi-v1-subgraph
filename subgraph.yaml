@@ -51,7 +51,7 @@ templates:
         - name: Factory
           file: ./abis/factory.json
       eventHandlers:
-        - event: Swap(indexed address,address,address,uint256,uint256,indexed address)
+        - event: Swap(indexed address,indexed address,address,address,uint256,uint256)
           handler: handleSwap
         - event: Deposit(indexed address,uint256,uint256,uint256,indexed address)
           handler: handleDeposit
