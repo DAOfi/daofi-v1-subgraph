@@ -1,33 +1,33 @@
 import { PairHourData } from './../types/schema'
 /* eslint-disable prefer-const */
 import { BigInt, BigDecimal, EthereumEvent } from '@graphprotocol/graph-ts'
-import { Pair, Bundle, Token, UniswapFactory, UniswapDayData, PairDayData, TokenDayData } from '../types/schema'
+import { Pair, Bundle, Token, DAOfiFactory, DAOfiDayData, PairDayData, TokenDayData } from '../types/schema'
 import { ONE_BI, ZERO_BD, ZERO_BI, FACTORY_ADDRESS } from './helpers'
 
 export function updateUniswapDayData(event: EthereumEvent): void {
-  let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
+  let uniswap = DAOfiFactory.load(FACTORY_ADDRESS)
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
   let dayStartTimestamp = dayID * 86400
-  let uniswapDayData = UniswapDayData.load(dayID.toString())
-  if (uniswapDayData == null) {
-    let uniswapDayData = new UniswapDayData(dayID.toString())
-    uniswapDayData.date = dayStartTimestamp
-    uniswapDayData.dailyVolumeUSD = ZERO_BD
-    uniswapDayData.dailyVolumeETH = ZERO_BD
-    uniswapDayData.totalVolumeUSD = ZERO_BD
-    uniswapDayData.totalVolumeETH = ZERO_BD
-    uniswapDayData.dailyVolumeUntracked = ZERO_BD
-    uniswapDayData.totalLiquidityUSD = ZERO_BD
-    uniswapDayData.totalLiquidityETH = ZERO_BD
-    uniswapDayData.txCount = ZERO_BI
-    uniswapDayData.save()
+  let daofiDayData = DAOfiDayData.load(dayID.toString())
+  if (daofiDayData == null) {
+    let daofiDayData = new DAOfiDayData(dayID.toString())
+    daofiDayData.date = dayStartTimestamp
+    daofiDayData.dailyVolumeUSD = ZERO_BD
+    daofiDayData.dailyVolumeETH = ZERO_BD
+    daofiDayData.totalVolumeUSD = ZERO_BD
+    daofiDayData.totalVolumeETH = ZERO_BD
+    daofiDayData.dailyVolumeUntracked = ZERO_BD
+    daofiDayData.totalLiquidityUSD = ZERO_BD
+    daofiDayData.totalLiquidityETH = ZERO_BD
+    daofiDayData.txCount = ZERO_BI
+    daofiDayData.save()
   }
-  uniswapDayData = UniswapDayData.load(dayID.toString())
-  uniswapDayData.totalLiquidityUSD = uniswap.totalLiquidityUSD
-  uniswapDayData.totalLiquidityETH = uniswap.totalLiquidityETH
-  uniswapDayData.txCount = uniswap.txCount
-  uniswapDayData.save()
+  daofiDayData = DAOfiDayData.load(dayID.toString())
+  daofiDayData.totalLiquidityUSD = uniswap.totalLiquidityUSD
+  daofiDayData.totalLiquidityETH = uniswap.totalLiquidityETH
+  daofiDayData.txCount = uniswap.txCount
+  daofiDayData.save()
 }
 
 export function updatePairDayData(event: EthereumEvent): void {

@@ -1,4 +1,4 @@
-type UniswapFactory @entity {
+type DAOfiFactory @entity {
   # factory address
   id: ID!
 
@@ -52,10 +52,11 @@ type Pair @entity {
   id: ID!
 
   # mirrored from the smart contract
-  token0: Token!
-  token1: Token!
-  reserve0: BigDecimal!
-  reserve1: BigDecimal!
+  tokenBase: Token!
+  tokenQuote: Token!
+  reserveBase: BigDecimal!
+  reserveQuote: BigDecimal!
+  supply: BigDecimal!
   totalSupply: BigDecimal!
 
   # derived liquidity
@@ -63,12 +64,12 @@ type Pair @entity {
   reserveUSD: BigDecimal!
   trackedReserveETH: BigDecimal! # used for separating per pair reserves and global
   # Price in terms of the asset pair
-  token0Price: BigDecimal!
-  token1Price: BigDecimal!
+  tokenBasePrice: BigDecimal!
+  tokenQuotePrice: BigDecimal!
 
   # lifetime volume stats
-  volumeToken0: BigDecimal!
-  volumeToken1: BigDecimal!
+  volumeTokenBase: BigDecimal!
+  volumeTokenQuote: BigDecimal!
   volumeUSD: BigDecimal!
   untrackedVolumeUSD: BigDecimal!
   txCount: BigInt!
@@ -103,10 +104,10 @@ type LiquidityPositionSnapshot @entity {
   block: Int! # saved for fast historical lookups
   user: User! # reference to user
   pair: Pair! # reference to pair
-  token0PriceUSD: BigDecimal! # snapshot of token0 price
-  token1PriceUSD: BigDecimal! # snapshot of token1 price
-  reserve0: BigDecimal! # snapshot of pair token0 reserves
-  reserve1: BigDecimal! # snapshot of pair token1 reserves
+  tokenBasePriceUSD: BigDecimal! # snapshot of tokenBase price
+  tokenQuotePriceUSD: BigDecimal! # snapshot of tokenQuote price
+  reserveBase: BigDecimal! # snapshot of pair tokenBase reserves
+  reserveQuote: BigDecimal! # snapshot of pair tokenQuote reserves
   reserveUSD: BigDecimal! # snapshot of pair reserves in USD
   liquidityTokenTotalSupply: BigDecimal! # snapshot of pool token supply
   liquidityTokenBalance: BigDecimal! # snapshot of users pool token balance
@@ -116,62 +117,7 @@ type Transaction @entity {
   id: ID! # txn hash
   blockNumber: BigInt!
   timestamp: BigInt!
-  # This is not the reverse of Mint.transaction; it is only used to
-  # track incomplete mints (similar for burns and swaps)
-  mints: [Mint]!
-  burns: [Burn]!
   swaps: [Swap]!
-}
-
-type Mint @entity {
-  # transaction hash + "-" + index in mints Transaction array
-  id: ID!
-  transaction: Transaction!
-  timestamp: BigInt! # need this to pull recent txns for specific token or pair
-  pair: Pair!
-
-  # populated from the primary Transfer event
-  to: Bytes!
-  liquidity: BigDecimal!
-
-  # populated from the Mint event
-  sender: Bytes
-  amount0: BigDecimal
-  amount1: BigDecimal
-  logIndex: BigInt
-  # derived amount based on available prices of tokens
-  amountUSD: BigDecimal
-
-  # optional fee fields, if a Transfer event is fired in _mintFee
-  feeTo: Bytes
-  feeLiquidity: BigDecimal
-}
-
-type Burn @entity {
-  # transaction hash + "-" + index in mints Transaction array
-  id: ID!
-  transaction: Transaction!
-  timestamp: BigInt! # need this to pull recent txns for specific token or pair
-  pair: Pair!
-
-  # populated from the primary Transfer event
-  liquidity: BigDecimal!
-
-  # populated from the Burn event
-  sender: Bytes
-  amount0: BigDecimal
-  amount1: BigDecimal
-  to: Bytes
-  logIndex: BigInt
-  # derived amount based on available prices of tokens
-  amountUSD: BigDecimal
-
-  # mark uncomplete in ETH case
-  needsComplete: Boolean!
-
-  # optional fee fields, if a Transfer event is fired in _mintFee
-  feeTo: Bytes
-  feeLiquidity: BigDecimal
 }
 
 type Swap @entity {
@@ -183,10 +129,12 @@ type Swap @entity {
 
   # populated from the Swap event
   sender: Bytes!
-  amount0In: BigDecimal!
-  amount1In: BigDecimal!
-  amount0Out: BigDecimal!
-  amount1Out: BigDecimal!
+  tokenBase: Bytes!
+  tokenQuote: Bytes!
+  tokenIn: Bytes!
+  tokenOut: Bytes!
+  amountIn: BigDecimal!
+  amountOut: BigDecimal!
   to: Bytes!
   logIndex: BigInt
 
@@ -201,7 +149,7 @@ type Bundle @entity {
 }
 
 # Data accumulated and condensed into day stats for all of Uniswap
-type UniswapDayData @entity {
+type DAOfiDayData @entity {
   id: ID! # timestamp rounded to current day by dividing by 86400
   date: Int!
 
@@ -223,8 +171,8 @@ type PairHourData @entity {
   pair: Pair!
 
   # reserves
-  reserve0: BigDecimal!
-  reserve1: BigDecimal!
+  reserveBase: BigDecimal!
+  reserveQuote: BigDecimal!
 
   # derived liquidity
   reserveUSD: BigDecimal!
@@ -241,12 +189,13 @@ type PairDayData @entity {
   id: ID!
   date: Int!
   pairAddress: Bytes!
-  token0: Token!
-  token1: Token!
+  tokenBase: Token!
+  tokenQuote: Token!
 
   # reserves
-  reserve0: BigDecimal!
-  reserve1: BigDecimal!
+  reserveBase: BigDecimal!
+  reserveQuote: BigDecimal!
+  supply: BigDecimal!
 
   # total supply for LP historical returns
   totalSupply: BigDecimal!
