@@ -35,80 +35,84 @@ export function handleNewPair(event: PairCreated): void {
   factory.save()
 
   // create the tokens
-  let token0 = Token.load(event.params.token0.toHexString())
-  let token1 = Token.load(event.params.token1.toHexString())
+  let tokenBase = Token.load(event.params.baseToken.toHexString())
+  let tokenQuote = Token.load(event.params.quoteToken.toHexString())
 
   // fetch info if null
-  if (token0 == null) {
-    token0 = new Token(event.params.token0.toHexString())
-    token0.symbol = fetchTokenSymbol(event.params.token0)
-    token0.name = fetchTokenName(event.params.token0)
-    token0.totalSupply = fetchTokenTotalSupply(event.params.token0)
-    let decimals = fetchTokenDecimals(event.params.token0)
+  if (tokenBase == null) {
+    tokenBase = new Token(event.params.baseToken.toHexString())
+    tokenBase.symbol = fetchTokenSymbol(event.params.baseToken)
+    tokenBase.name = fetchTokenName(event.params.baseToken)
+    tokenBase.totalSupply = fetchTokenTotalSupply(event.params.baseToken)
+    let decimals = fetchTokenDecimals(event.params.baseToken)
     // bail if we couldn't figure out the decimals
     if (decimals === null) {
       log.debug('mybug the decimal on token 0 was null', [])
       return
     }
 
-    token0.decimals = decimals
-    token0.derivedETH = ZERO_BD
-    token0.tradeVolume = ZERO_BD
-    token0.tradeVolumeUSD = ZERO_BD
-    token0.untrackedVolumeUSD = ZERO_BD
-    token0.totalLiquidity = ZERO_BD
-    // token0.allPairs = []
-    token0.txCount = ZERO_BI
+    tokenBase.decimals = decimals
+    tokenBase.derivedETH = ZERO_BD
+    tokenBase.tradeVolume = ZERO_BD
+    tokenBase.tradeVolumeUSD = ZERO_BD
+    tokenBase.untrackedVolumeUSD = ZERO_BD
+    tokenBase.totalLiquidity = ZERO_BD
+    // tokenBase.allPairs = []
+    tokenBase.txCount = ZERO_BI
   }
 
   // fetch info if null
-  if (token1 == null) {
-    token1 = new Token(event.params.token1.toHexString())
-    token1.symbol = fetchTokenSymbol(event.params.token1)
-    token1.name = fetchTokenName(event.params.token1)
-    token1.totalSupply = fetchTokenTotalSupply(event.params.token1)
-    let decimals = fetchTokenDecimals(event.params.token1)
+  if (tokenQuote == null) {
+    tokenQuote = new Token(event.params.quoteToken.toHexString())
+    tokenQuote.symbol = fetchTokenSymbol(event.params.quoteToken)
+    tokenQuote.name = fetchTokenName(event.params.quoteToken)
+    tokenQuote.totalSupply = fetchTokenTotalSupply(event.params.quoteToken)
+    let decimals = fetchTokenDecimals(event.params.quoteToken)
 
     // bail if we couldn't figure out the decimals
     if (decimals === null) {
       return
     }
-    token1.decimals = decimals
-    token1.derivedETH = ZERO_BD
-    token1.tradeVolume = ZERO_BD
-    token1.tradeVolumeUSD = ZERO_BD
-    token1.untrackedVolumeUSD = ZERO_BD
-    token1.totalLiquidity = ZERO_BD
-    // token1.allPairs = []
-    token1.txCount = ZERO_BI
+    tokenQuote.decimals = decimals
+    tokenQuote.derivedETH = ZERO_BD
+    tokenQuote.tradeVolume = ZERO_BD
+    tokenQuote.tradeVolumeUSD = ZERO_BD
+    tokenQuote.untrackedVolumeUSD = ZERO_BD
+    tokenQuote.totalLiquidity = ZERO_BD
+    // tokenQuote.allPairs = []
+    tokenQuote.txCount = ZERO_BI
   }
 
   let pair = new Pair(event.params.pair.toHexString()) as Pair
-  pair.token0 = token0.id
-  pair.token1 = token1.id
+  pair.tokenBase = tokenBase.id
+  pair.tokenQuote = tokenQuote.id
+  pair.pairOwner = event.params.pairOwner
+  pair.slopeNumerator = event.params.slopeNumerator
+  pair.n = event.params.n
+  pair.fee = event.params.fee
   pair.liquidityProviderCount = ZERO_BI
   pair.createdAtTimestamp = event.block.timestamp
   pair.createdAtBlockNumber = event.block.number
   pair.txCount = ZERO_BI
-  pair.reserve0 = ZERO_BD
-  pair.reserve1 = ZERO_BD
+  pair.reserveBase = ZERO_BD
+  pair.reserveQuote = ZERO_BD
   pair.trackedReserveETH = ZERO_BD
   pair.reserveETH = ZERO_BD
   pair.reserveUSD = ZERO_BD
   pair.totalSupply = ZERO_BD
-  pair.volumeToken0 = ZERO_BD
-  pair.volumeToken1 = ZERO_BD
+  pair.volumeTokenBase = ZERO_BD
+  pair.volumeTokenQuote = ZERO_BD
   pair.volumeUSD = ZERO_BD
   pair.untrackedVolumeUSD = ZERO_BD
-  pair.token0Price = ZERO_BD
-  pair.token1Price = ZERO_BD
+  pair.tokenBasePrice = ZERO_BD
+  pair.tokenQuotePrice = ZERO_BD
 
   // create the tracked contract based on the template
   PairTemplate.create(event.params.pair)
 
   // save updated values
-  token0.save()
-  token1.save()
+  tokenBase.save()
+  tokenQuote.save()
   pair.save()
   factory.save()
 }

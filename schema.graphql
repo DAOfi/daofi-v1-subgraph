@@ -54,6 +54,10 @@ type Pair @entity {
   # mirrored from the smart contract
   tokenBase: Token!
   tokenQuote: Token!
+  pairOwner: Bytes!
+  slopeNumerator: BigInt!
+  n: BigInt!
+  fee: BigInt!
   reserveBase: BigDecimal!
   reserveQuote: BigDecimal!
   supply: BigDecimal!
