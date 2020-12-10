@@ -1,12 +1,12 @@
 specVersion: 0.0.2
-description: Uniswap is a decentralized protocol for automated token exchange on Ethereum.
-repository: https://github.com/graphprotocol/uniswap-v2-subgraph
+description: DAOfi is a decentralized protocol for automated token exchange on Ethereum.
+repository: https://github.com/DAOfi/daofi-v1-subgraph
 schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
     name: Factory
-    network: xdai
+    network: kovan
     source:
       address: '0xA818b4F111Ccac7AA31D0BCc0806d64F2E0737D7'
       abi: Factory
@@ -29,12 +29,12 @@ dataSources:
         - name: ERC20NameBytes
           file: ./abis/ERC20NameBytes.json
       eventHandlers:
-        - event: PairCreated(indexed address,indexed address,address,uint256)
+        - event: PairCreated(indexed address,indexed address,address,uint32,uint32,uint32,address,uint256)
           handler: handleNewPair
 templates:
   - kind: ethereum/contract
     name: Pair
-    network: xdai
+    network: kovan
     source:
       abi: Pair
     mapping:
@@ -51,13 +51,11 @@ templates:
         - name: Factory
           file: ./abis/factory.json
       eventHandlers:
-        - event: Mint(indexed address,uint256,uint256)
-          handler: handleMint
-        - event: Burn(indexed address,uint256,uint256,indexed address)
-          handler: handleBurn
-        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+        - event: Swap(indexed address,address,address,uint256,uint256,indexed address)
           handler: handleSwap
-        - event: Transfer(indexed address,indexed address,uint256)
-          handler: handleTransfer
-        - event: Sync(uint112,uint112)
-          handler: handleSync
+        - event: Deposit(indexed address,uint256,uint256,uint256,indexed address)
+          handler: handleDeposit
+        - event: Withdraw(indexed address,uint256,uint256,indexed address)
+          handler: handleWithdraw
+        - event: WithdrawFees(indexed address,uint256,uint256,indexed address)
+          handler: handleWithdrawFees
