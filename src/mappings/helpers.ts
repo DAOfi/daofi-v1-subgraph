@@ -168,7 +168,7 @@ export function createLiquiditySnapshot(position: LiquidityPosition, event: Ethe
   snapshot.token1PriceUSD = token1.derivedETH.times(bundle.ethPrice)
   snapshot.reserve0 = pair.reserve0
   snapshot.reserve1 = pair.reserve1
-  snapshot.reserveUSD = pair.reserveUSD
+  snapshot.reserveXDAI = pair.reserveXDAI
   snapshot.liquidityTokenTotalSupply = pair.totalSupply
   snapshot.liquidityTokenBalance = position.liquidityTokenBalance
   snapshot.liquidityPosition = position.id

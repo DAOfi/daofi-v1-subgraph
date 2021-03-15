@@ -6,9 +6,9 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: Factory
-    network: kovan
+    network: xdai
     source:
-      address: '0xA818b4F111Ccac7AA31D0BCc0806d64F2E0737D7'
+      address: '0x408b10d4a4EA307017B647732D7BcE95A3fD76B2'
       abi: Factory
       startBlock: 11813490
     mapping:
@@ -34,7 +34,7 @@ dataSources:
 templates:
   - kind: ethereum/contract
     name: Pair
-    network: kovan
+    network: xdai
     source:
       abi: Pair
     mapping:
@@ -51,7 +51,7 @@ templates:
         - name: Factory
           file: ./abis/factory.json
       eventHandlers:
-        - event: Swap(indexed address,indexed address,address,address,uint256,uint256)
+        - event: Swap(indexed address,indexed address,address,address,uint256,uint256,indexed address)
           handler: handleSwap
         - event: Deposit(indexed address,uint256,uint256,uint256,indexed address)
           handler: handleDeposit

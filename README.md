@@ -1,4 +1,4 @@
-# DAOfi V2 Subgraph
+# DAOfi V1 Subgraph
 
 [DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange on Ethereum.
 
@@ -22,7 +22,7 @@ Below are a few ways to show how to query the daofi-subgraph for data. The queri
 
 #### DAOfiFactory
 
-Contains data across all of DAOfi V2. This entity tracks important things like total liquidity (in ETH and USD, see below), all time volume, transaction count, number of pairs and more.
+Contains data across all of DAOfi V1. This entity tracks important things like total liquidity (in ETH and USD, see below), all time volume, transaction count, number of pairs and more.
 
 #### Token
 
@@ -36,7 +36,7 @@ Contains data on a specific pair.
 
 Every transaction on DAOfi is stored. Each transaction contains an array of mints, burns, and swaps that occured within it.
 
-#### Mint, Burn, Swap
+#### Deposit, Swap, Withdraw
 
 These contain specifc information about a transaction. Things like which pair triggered the transaction, amounts, sender, recipient, and more. Each is linked to a parent Transaction entity.
 
@@ -50,8 +50,8 @@ This query fetches aggredated data from all daofi pairs and tokens, to give a vi
 {
   daofiFactories(first: 1) {
     pairCount
-    totalVolumeUSD
-    totalLiquidityUSD
+    totalVolumeXDAI
+    totalLiquidityXDAI
   }
 }
 ```

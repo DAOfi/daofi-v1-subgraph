@@ -21,9 +21,9 @@ export function handleNewPair(event: PairCreated): void {
     factory.pairCount = 0
     factory.totalVolumeETH = ZERO_BD
     factory.totalLiquidityETH = ZERO_BD
-    factory.totalVolumeUSD = ZERO_BD
-    factory.untrackedVolumeUSD = ZERO_BD
-    factory.totalLiquidityUSD = ZERO_BD
+    factory.totalVolumeXDAI = ZERO_BD
+    factory.untrackedVolumeXDAI = ZERO_BD
+    factory.totalLiquidityXDAI = ZERO_BD
     factory.txCount = ZERO_BI
 
     // create new bundle
@@ -54,8 +54,8 @@ export function handleNewPair(event: PairCreated): void {
     tokenBase.decimals = decimals
     tokenBase.derivedETH = ZERO_BD
     tokenBase.tradeVolume = ZERO_BD
-    tokenBase.tradeVolumeUSD = ZERO_BD
-    tokenBase.untrackedVolumeUSD = ZERO_BD
+    tokenBase.tradeVolumeXDAI = ZERO_BD
+    tokenBase.untrackedVolumeXDAI = ZERO_BD
     tokenBase.totalLiquidity = ZERO_BD
     // tokenBase.allPairs = []
     tokenBase.txCount = ZERO_BI
@@ -76,8 +76,8 @@ export function handleNewPair(event: PairCreated): void {
     tokenQuote.decimals = decimals
     tokenQuote.derivedETH = ZERO_BD
     tokenQuote.tradeVolume = ZERO_BD
-    tokenQuote.tradeVolumeUSD = ZERO_BD
-    tokenQuote.untrackedVolumeUSD = ZERO_BD
+    tokenQuote.tradeVolumeXDAI = ZERO_BD
+    tokenQuote.untrackedVolumeXDAI = ZERO_BD
     tokenQuote.totalLiquidity = ZERO_BD
     // tokenQuote.allPairs = []
     tokenQuote.txCount = ZERO_BI
@@ -98,12 +98,12 @@ export function handleNewPair(event: PairCreated): void {
   pair.reserveQuote = ZERO_BD
   pair.trackedReserveETH = ZERO_BD
   pair.reserveETH = ZERO_BD
-  pair.reserveUSD = ZERO_BD
+  pair.reserveXDAI = ZERO_BD
   pair.totalSupply = ZERO_BD
   pair.volumeTokenBase = ZERO_BD
   pair.volumeTokenQuote = ZERO_BD
-  pair.volumeUSD = ZERO_BD
-  pair.untrackedVolumeUSD = ZERO_BD
+  pair.volumeXDAI = ZERO_BD
+  pair.untrackedVolumeXDAI = ZERO_BD
   pair.tokenBasePrice = ZERO_BD
   pair.tokenQuotePrice = ZERO_BD
 
