@@ -6,14 +6,14 @@ type DAOfiFactory @entity {
   pairCount: Int!
 
   # total volume
-  totalVolumeXDAI: BigDecimal!
+  totalVolumeUSD: BigDecimal!
   totalVolumeETH: BigDecimal!
 
   # untracked values - less confident USD scores
-  untrackedVolumeXDAI: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
 
   # total liquidity
-  totalLiquidityXDAI: BigDecimal!
+  totalLiquidityUSD: BigDecimal!
   totalLiquidityETH: BigDecimal!
 
   # transactions
@@ -34,8 +34,8 @@ type Token @entity {
 
   # token specific volume
   tradeVolume: BigDecimal!
-  tradeVolumeXDAI: BigDecimal!
-  untrackedVolumeXDAI: BigDecimal!
+  tradeVolumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
 
   # transactions across all pairs
   txCount: BigInt!
@@ -65,7 +65,7 @@ type Pair @entity {
 
   # derived liquidity
   reserveETH: BigDecimal!
-  reserveXDAI: BigDecimal!
+  reserveUSD: BigDecimal!
   trackedReserveETH: BigDecimal! # used for separating per pair reserves and global
   # Price in terms of the asset pair
   tokenBasePrice: BigDecimal!
@@ -74,8 +74,8 @@ type Pair @entity {
   # lifetime volume stats
   volumeTokenBase: BigDecimal!
   volumeTokenQuote: BigDecimal!
-  volumeXDAI: BigDecimal!
-  untrackedVolumeXDAI: BigDecimal!
+  volumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
   txCount: BigInt!
 
   # creation stats
@@ -108,11 +108,11 @@ type LiquidityPositionSnapshot @entity {
   block: Int! # saved for fast historical lookups
   user: User! # reference to user
   pair: Pair! # reference to pair
-  tokenBasePriceXDAI: BigDecimal! # snapshot of tokenBase price
-  tokenQuotePriceXDAI: BigDecimal! # snapshot of tokenQuote price
+  tokenBasePriceUSD: BigDecimal! # snapshot of tokenBase price
+  tokenQuotePriceUSD: BigDecimal! # snapshot of tokenQuote price
   reserveBase: BigDecimal! # snapshot of pair tokenBase reserves
   reserveQuote: BigDecimal! # snapshot of pair tokenQuote reserves
-  reserveXDAI: BigDecimal! # snapshot of pair reserves in USD
+  reserveUSD: BigDecimal! # snapshot of pair reserves in USD
   liquidityTokenTotalSupply: BigDecimal! # snapshot of pool token supply
   liquidityTokenBalance: BigDecimal! # snapshot of users pool token balance
 }
@@ -122,6 +122,8 @@ type Transaction @entity {
   blockNumber: BigInt!
   timestamp: BigInt!
   swaps: [Swap]!
+  deposits: [Deposit]!
+  withdrawals: [Withdraw]!
 }
 
 type Swap @entity {
@@ -143,7 +145,44 @@ type Swap @entity {
   logIndex: BigInt
 
   # derived info
-  amountXDAI: BigDecimal!
+  amountUSD: BigDecimal!
+}
+
+type Deposit @entity {
+  # transaction hash + "-" + index in deposits Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+  pair: Pair!
+
+  # populated from the Deposit event
+  sender: Bytes!
+  amountBase: BigDecimal!
+  amountQuote: BigDecimal!
+  output: BigDecimal!
+  to: Bytes!
+  logIndex: BigInt
+
+  # derived info
+  amountUSD: BigDecimal!
+}
+
+type Withdraw @entity {
+  # transaction hash + "-" + index in withdrawals Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+  pair: Pair!
+
+  # populated from the Withdraw event
+  sender: Bytes!
+  amountBase: BigDecimal!
+  amountQuote: BigDecimal!
+  to: Bytes!
+  logIndex: BigInt
+
+  # derived info
+  amountUSD: BigDecimal!
 }
 
 # stores for USD calculations
@@ -158,13 +197,13 @@ type DAOfiDayData @entity {
   date: Int!
 
   dailyVolumeETH: BigDecimal!
-  dailyVolumeXDAI: BigDecimal!
+  dailyVolumeUSD: BigDecimal!
   dailyVolumeUntracked: BigDecimal!
 
   totalVolumeETH: BigDecimal!
   totalLiquidityETH: BigDecimal!
-  totalVolumeXDAI: BigDecimal! # Accumulate at each trade, not just calculated off whatever totalVolume is. making it more accurate as it is a live conversion
-  totalLiquidityXDAI: BigDecimal!
+  totalVolumeUSD: BigDecimal! # Accumulate at each trade, not just calculated off whatever totalVolume is. making it more accurate as it is a live conversion
+  totalLiquidityUSD: BigDecimal!
 
   txCount: BigInt!
 }
@@ -179,12 +218,12 @@ type PairHourData @entity {
   reserveQuote: BigDecimal!
 
   # derived liquidity
-  reserveXDAI: BigDecimal!
+  reserveUSD: BigDecimal!
 
   # volume stats
   hourlyVolumeTokenBase: BigDecimal!
   hourlyVolumeTokenQuote: BigDecimal!
-  hourlyVolumeXDAI: BigDecimal!
+  hourlyVolumeUSD: BigDecimal!
   hourlyTxns: BigInt!
 }
 
@@ -205,12 +244,12 @@ type PairDayData @entity {
   totalSupply: BigDecimal!
 
   # derived liquidity
-  reserveXDAI: BigDecimal!
+  reserveUSD: BigDecimal!
 
   # volume stats
   dailyVolumeTokenBase: BigDecimal!
   dailyVolumeTokenQuote: BigDecimal!
-  dailyVolumeXDAI: BigDecimal!
+  dailyVolumeUSD: BigDecimal!
   dailyTxns: BigInt!
 }
 
@@ -222,14 +261,14 @@ type TokenDayData @entity {
   # volume stats
   dailyVolumeToken: BigDecimal!
   dailyVolumeETH: BigDecimal!
-  dailyVolumeXDAI: BigDecimal!
+  dailyVolumeUSD: BigDecimal!
   dailyTxns: BigInt!
 
   # liquidity stats
   totalLiquidityToken: BigDecimal!
   totalLiquidityETH: BigDecimal!
-  totalLiquidityXDAI: BigDecimal!
+  totalLiquidityUSD: BigDecimal!
 
   # price stats
-  priceXDAI: BigDecimal!
+  priceUSD: BigDecimal!
 }

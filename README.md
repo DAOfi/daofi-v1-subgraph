@@ -50,8 +50,8 @@ This query fetches aggredated data from all daofi pairs and tokens, to give a vi
 {
   daofiFactories(first: 1) {
     pairCount
-    totalVolumeXDAI
-    totalLiquidityXDAI
+    totalVolumeUSD
+    totalLiquidityUSD
   }
 }
 ```
