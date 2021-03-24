@@ -10,11 +10,8 @@ export function getEthPriceInUSD(): BigDecimal {
 }
 
 // token where amounts should contribute to tracked volume and liquidity
+// map base token to quote token
 let WHITELIST = {
-  // '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9', // HONEY
-  '0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d': { 1, 1, 0], // WXDAI
-  '0xddafbb505ad214d7b80b1f830fccc89b60fb7a83', 1, 1, 0], // USDC on xDai
-  '0x4ecaba5870353805a9f068101a40e0f32ed605c6', 1, 1, 0], // Tether on xDai
   '0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1', 21500, 1, 0] // Wrapped Ether on xDai
 ]
 
@@ -73,28 +70,6 @@ export function getTrackedVolumeUSD(
   let bundle = Bundle.load('1')
   let priceBase = tokenBase.derivedETH.times(bundle.ethPrice)
   let priceQuote = tokenQuote.derivedETH.times(bundle.ethPrice)
-
-  // if less than 5 LPs, require high minimum reserve amount amount or return 0
-  // if (pair.liquidityProviderCount.lt(BigInt.fromI32(5))) {
-  //   let reserve0USD = pair.reserve0.times(priceBase)
-  //   let reserve1USD = pair.reserve1.times(priceQuote)
-  //   if (WHITELIST.includes(tokenBase.id) && WHITELIST.includes(tokenQuote.id)) {
-  //     if (reserve0USD.plus(reserve1USD).lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
-  //       return ZERO_BD
-  //     }
-  //   }
-  //   if (WHITELIST.includes(tokenBase.id) && !WHITELIST.includes(tokenQuote.id)) {
-  //     if (reserve0USD.times(BigDecimal.fromString('2')).lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
-  //       return ZERO_BD
-  //     }
-  //   }
-  //   if (!WHITELIST.includes(tokenBase.id) && WHITELIST.includes(tokenQuote.id)) {
-  //     if (reserve1USD.times(BigDecimal.fromString('2')).lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
-  //       return ZERO_BD
-  //     }
-  //   }
-  // }
-
 
   // take full value of the whitelisted token amount
   if (WHITELIST.includes(tokenBase.id) && !WHITELIST.includes(tokenQuote.id)) {
