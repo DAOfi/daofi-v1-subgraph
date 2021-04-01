@@ -75,6 +75,8 @@ type Pair @entity {
   # creation stats
   createdAtTimestamp: BigInt!
   createdAtBlockNumber: BigInt!
+  closedAtTimestamp: BigInt
+  closedAtBlockNumber: BigInt
 }
 
 type UniswapPair @entity {

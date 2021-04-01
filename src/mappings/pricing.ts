@@ -56,12 +56,17 @@ export function findEthPerToken(token: Token | null): BigDecimal {
   return ZERO_BD // nothing was found return 0
 }
 
-export function getPairPrices(pairAddress: string): BigDecimal[] {
-  let pair = Pair.load(pairAddress)
-  let pairContract = PairContract.bind(Address.fromString(pairAddress))
+export function updatePair(pair: Pair | null): void {
+  let pairContract = PairContract.bind(Address.fromString(pair.id))
   let tokenQuote = Token.load(pair.tokenQuote)
+  let tokenBase = Token.load(pair.tokenBase)
   let basePrice = convertTokenToDecimal(pairContract.price(), tokenQuote.decimals)
-  return [basePrice, BigDecimal.fromString('1').div(basePrice)]
+  pair.tokenBasePrice = basePrice
+  pair.tokenQuotePrice = BigDecimal.fromString('1').div(pair.tokenBasePrice)
+  pair.supply = convertTokenToDecimal(pairContract.supply(), tokenBase.decimals)
+  let reserves = pairContract.getReserves()
+  pair.reserveBase = convertTokenToDecimal(reserves.value0, tokenBase.decimals)
+  pair.reserveQuote = convertTokenToDecimal(reserves.value1, tokenQuote.decimals)
 }
 
 /**
