@@ -12,6 +12,7 @@ import {
   Swap as SwapEvent,
   Deposit as DepositEvent,
   Withdraw as WithdrawEvent,
+  WithdrawFees as WithdrawFeesEvent,
   Bundle,
   User
 } from '../types/schema'
@@ -36,7 +37,7 @@ export function handleSwap(event: Swap): void {
   let tokenOut = Token.load(event.params.tokenOut.toHexString())
   let amountIn = convertTokenToDecimal(event.params.amountIn, tokenBase.decimals)
   let amountOut = convertTokenToDecimal(event.params.amountOut, tokenQuote.decimals)
-  let isBuy = event.params.tokenOut.toHexString() === pair.tokenBase
+  let isBuy = event.params.tokenOut.toHexString() == pair.tokenBase
   let zero = BigDecimal.fromString('0')
   // totals for volume updates
   let amountBaseTotal = isBuy ? amountOut : amountIn
@@ -50,7 +51,7 @@ export function handleSwap(event: Swap): void {
   // ETH/USD prices
   let bundle = Bundle.load('1')
 
-  // get total amounts of derived USD and ETH for tracking
+  // get the average eth / amounts for tracking on the pair
   let derivedAmountETH = tokenQuote.derivedETH
     .times(amountQuoteTotal)
     .plus(tokenBase.derivedETH.times(amountBaseTotal))
@@ -59,12 +60,14 @@ export function handleSwap(event: Swap): void {
 
 
   // update tokenBase global volume and token liquidity stats
-  tokenBase.tradeVolume = tokenBase.tradeVolume.plus(amountBaseIn.plus(amountBaseOut))
-  tokenBase.tradeVolumeUSD = tokenBase.tradeVolumeUSD.plus(derivedAmountUSD)
+  let baseVolume = amountBaseIn.plus(amountBaseOut)
+  tokenBase.tradeVolume = tokenBase.tradeVolume.plus(baseVolume)
+  tokenBase.tradeVolumeUSD = tokenBase.tradeVolumeUSD.plus(tokenBase.derivedETH.times(baseVolume).times(bundle.ethPrice))
 
   // update tokenQuote global volume and token liquidity stats
-  tokenQuote.tradeVolume = tokenQuote.tradeVolume.plus(amountQuoteIn.plus(amountQuoteOut))
-  tokenQuote.tradeVolumeUSD = tokenQuote.tradeVolumeUSD.plus(derivedAmountUSD)
+  let quoteVolume = amountQuoteIn.plus(amountQuoteOut)
+  tokenQuote.tradeVolume = tokenQuote.tradeVolume.plus(quoteVolume)
+  tokenQuote.tradeVolumeUSD = tokenQuote.tradeVolumeUSD.plus(tokenQuote.derivedETH.times(quoteVolume).times(bundle.ethPrice))
 
   // update txn counts
   tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
@@ -186,7 +189,7 @@ export function handleSwap(event: Swap): void {
     .concat(BigInt.fromI32(dayID).toString())
   let tokenBaseDayData = TokenDayData.load(tokenBaseDayID)
   tokenBaseDayData.dailyVolumeToken = tokenBaseDayData.dailyVolumeToken.plus(amountBaseTotal)
-  tokenBaseDayData.dailyVolumeETH = tokenBaseDayData.dailyVolumeETH.plus(amountBaseTotal.times(tokenQuote.derivedETH as BigDecimal))
+  tokenBaseDayData.dailyVolumeETH = tokenBaseDayData.dailyVolumeETH.plus(amountBaseTotal.times(tokenBase.derivedETH as BigDecimal))
   tokenBaseDayData.dailyVolumeUSD = tokenBaseDayData.dailyVolumeUSD.plus(
     amountBaseTotal.times(tokenBase.derivedETH as BigDecimal).times(bundle.ethPrice)
   )
@@ -246,6 +249,7 @@ function isCompleteDeposit(depositId: string): boolean {
 }
 
 export function handleDeposit(event: Deposit): void {
+  let bundle = Bundle.load('1')
   let transaction = Transaction.load(event.transaction.hash.toHexString())
   let pair = Pair.load(event.address.toHex())
   let factory = Factory.load(FACTORY_ADDRESS)
@@ -266,37 +270,35 @@ export function handleDeposit(event: Deposit): void {
   factory.txCount = factory.txCount.plus(ONE_BI)
   let depositAmountETH = tokenQuote.derivedETH.times(tokenQuoteAmount).plus(tokenBase.derivedETH.times(tokenBaseAmount))
   factory.totalLiquidityETH = factory.totalLiquidityETH.plus(depositAmountETH)
-  let bundle = Bundle.load('1')
   factory.totalLiquidityUSD = factory.totalLiquidityETH.times(bundle.ethPrice)
   // update deposit
-  if (deposits.length === 0 || isCompleteDeposit(deposits[deposits.length - 1])) {
-    let deposit: DepositEvent = new DepositEvent(
-      event.transaction.hash
-        .toHexString()
-        .concat('-')
-        .concat(BigInt.fromI32(deposits.length).toString())
-    )
-    deposit.transaction = transaction.id
-    deposit.timestamp = transaction.timestamp
-    deposit.pair = event.address.toHexString()
-    deposit.sender = event.params.sender
-    deposit.amountBase = tokenBaseAmount
-    deposit.amountQuote = tokenQuoteAmount
-    deposit.output = pair.supply = baseOut
-    deposit.to = event.params.to
-    deposit.logIndex = event.logIndex
-    deposit.amountUSD = depositAmountETH.times(bundle.ethPrice)
-    transaction.deposits = deposits.concat([deposit.id])
+  let deposit: DepositEvent = new DepositEvent(
+    event.transaction.hash
+      .toHexString()
+      .concat('-')
+      .concat(BigInt.fromI32(deposits.length).toString())
+  )
+  deposit.transaction = transaction.id
+  deposit.timestamp = transaction.timestamp
+  deposit.pair = event.address.toHexString()
+  deposit.sender = event.params.sender
+  deposit.amountBase = tokenBaseAmount
+  deposit.amountQuote = tokenQuoteAmount
+  deposit.output = pair.supply = baseOut
+  deposit.to = event.params.to
+  deposit.logIndex = event.logIndex
+  deposit.amountUSD = depositAmountETH.times(bundle.ethPrice)
+  transaction.deposits = deposits.concat([deposit.id])
 
-    // create users
-    createUser(event.params.sender)
-    createUser(event.params.to)
+  // create users
+  createUser(event.params.sender)
+  createUser(event.params.to)
 
-    // update the LP position
-    let liquidityPosition = createLiquidityPosition(event.address, deposit.to as Address)
-    createLiquiditySnapshot(liquidityPosition, event)
-    deposit.save()
-  }
+  // update the LP position
+  let liquidityPosition = createLiquidityPosition(event.address, deposit.to as Address)
+  createLiquiditySnapshot(liquidityPosition, event)
+  deposit.save()
+
   // update pair
   pair.txCount = pair.txCount.plus(ONE_BI)
   pair.reserveBase = tokenBaseAmount
@@ -353,33 +355,32 @@ export function handleWithdraw(event: Withdraw): void {
   let bundle = Bundle.load('1')
   factory.totalLiquidityUSD = factory.totalLiquidityETH.times(bundle.ethPrice)
   // update withdraw
-  if (withdrawals.length === 0) {
-    let withdraw: WithdrawEvent = new WithdrawEvent(
-      event.transaction.hash
-        .toHexString()
-        .concat('-')
-        .concat(BigInt.fromI32(withdrawals.length).toString())
-    )
-    withdraw.transaction = transaction.id
-    withdraw.timestamp = transaction.timestamp
-    withdraw.pair = event.address.toHexString()
-    withdraw.sender = event.params.sender
-    withdraw.amountBase = tokenBaseAmount
-    withdraw.amountQuote = tokenQuoteAmount
-    withdraw.to = event.params.to
-    withdraw.logIndex = event.logIndex
-    withdraw.amountUSD = withdrawAmountETH.times(bundle.ethPrice)
-    transaction.withdrawals = withdrawals.concat([withdraw.id])
+  let withdraw: WithdrawEvent = new WithdrawEvent(
+    event.transaction.hash
+      .toHexString()
+      .concat('-')
+      .concat(BigInt.fromI32(withdrawals.length).toString())
+  )
+  withdraw.transaction = transaction.id
+  withdraw.timestamp = transaction.timestamp
+  withdraw.pair = event.address.toHexString()
+  withdraw.sender = event.params.sender
+  withdraw.amountBase = tokenBaseAmount
+  withdraw.amountQuote = tokenQuoteAmount
+  withdraw.to = event.params.to
+  withdraw.logIndex = event.logIndex
+  withdraw.amountUSD = withdrawAmountETH.times(bundle.ethPrice)
+  transaction.withdrawals = withdrawals.concat([withdraw.id])
 
-    // create users
-    createUser(event.params.sender)
-    createUser(event.params.to)
+  // create users
+  createUser(event.params.sender)
+  createUser(event.params.to)
 
-    // update the LP position
-    let liquidityPosition = createLiquidityPosition(event.address, withdraw.to as Address)
-    createLiquiditySnapshot(liquidityPosition, event)
-    withdraw.save()
-  }
+  // update the LP position
+  let liquidityPosition = createLiquidityPosition(event.address, withdraw.to as Address)
+  createLiquiditySnapshot(liquidityPosition, event)
+  withdraw.save()
+
   // update pair
   pair.txCount = pair.txCount.plus(ONE_BI)
   pair.reserveBase = ZERO_BD
@@ -405,3 +406,52 @@ export function handleWithdraw(event: Withdraw): void {
   updateTokenDayData(tokenBase as Token, event)
   updateTokenDayData(tokenQuote as Token, event)
 }
+
+export function handleWithdrawFees(event: WithdrawFees): void {
+  let bundle = Bundle.load('1')
+  let transaction = Transaction.load(event.transaction.hash.toHexString())
+  if (transaction === null) {
+    transaction = new Transaction(event.transaction.hash.toHexString())
+    transaction.blockNumber = event.block.number
+    transaction.timestamp = event.block.timestamp
+    transaction.deposits = []
+    transaction.swaps = []
+    transaction.withdrawals = []
+    transaction.feeWithdrawals = []
+    transaction.save()
+  }
+  let pair = Pair.load(event.address.toHex())
+  let tokenBase = Token.load(pair.tokenBase)
+  let tokenQuote = Token.load(pair.tokenQuote)
+  let tokenBaseAmount = convertTokenToDecimal(event.params.amountBase, tokenBase.decimals)
+  let tokenQuoteAmount = convertTokenToDecimal(event.params.amountQuote, tokenQuote.decimals)
+  let withdrawals = transaction.feeWithdrawals
+  // update tokens
+  tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
+  tokenQuote.txCount = tokenQuote.txCount.plus(ONE_BI)
+  tokenBase.derivedETH = findEthPerToken(tokenBase)
+  tokenQuote.derivedETH = findEthPerToken(tokenQuote)
+  let withdrawAmountETH = tokenQuote.derivedETH.times(tokenQuoteAmount).plus(tokenBase.derivedETH.times(tokenBaseAmount))
+  let withdraw: WithdrawFeesEvent = new WithdrawFeesEvent(
+    event.transaction.hash
+      .toHexString()
+      .concat('-')
+      .concat(BigInt.fromI32(withdrawals.length).toString())
+  )
+  withdraw.transaction = transaction.id
+  withdraw.timestamp = transaction.timestamp
+  withdraw.pair = event.address.toHexString()
+  withdraw.sender = event.params.sender
+  withdraw.amountBase = tokenBaseAmount
+  withdraw.amountQuote = tokenQuoteAmount
+  withdraw.to = event.params.to
+  withdraw.logIndex = event.logIndex
+  withdraw.amountUSD = withdrawAmountETH.times(bundle.ethPrice)
+  transaction.withdrawals = withdrawals.concat([withdraw.id])
+
+  // create users
+  createUser(event.params.sender)
+  createUser(event.params.to)
+  withdraw.save()
+}
+

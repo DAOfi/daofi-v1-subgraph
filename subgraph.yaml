@@ -79,5 +79,7 @@ templates:
           handler: handleDeposit
         - event: Withdraw(indexed address,uint256,uint256,indexed address)
           handler: handleWithdraw
+        - event: WithdrawFees(indexed address,uint256,uint256,indexed address)
+          handler: handleWithdrawFees
 
 
