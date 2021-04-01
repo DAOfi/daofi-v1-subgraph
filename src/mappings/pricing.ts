@@ -4,8 +4,8 @@ import { BigDecimal, Address, BigInt } from '@graphprotocol/graph-ts/index'
 import { convertTokenToDecimal, ZERO_BD, ONE_BD } from './helpers'
 import { Pair as PairContract } from '../types/templates/Pair/Pair'
 
-const WETH_ADDRESS = '0x80c2553261f77b00dcaadfd3612403ac7f67b6fb'
-const USDT_WETH_PAIR = '0x372d9eb2695afa280d113b94e4a022ecadaaea76' // created block 10093341
+const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+const USDT_WETH_PAIR = '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852' // created block 10093341
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
@@ -20,8 +20,8 @@ export function getEthPriceInUSD(): BigDecimal {
 
 // whitelist [base token, pair address]
 let WHITELIST: string[][] = [
-  ['0xf4762ff096e046b3ae3abb428e255779d7befb16', '0xade4a5ce24f155d8f0720cfeb4f47f52f7dafd95'],// IDXM
-  ['0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2']// REFRACTION
+  ['0xf7e8213cbcc88b64e4943b6aa9bd9752ac08b4f4', '0x3e0b2815ac13bbd73ca865b5ff183ec8dbbb98d3'],// IDXM
+  ['0x21a870c7fce1bce5d88bdf845ac332c76204a9a0', '0x2c98813dea4aa80f0f160748450f0abfd51fb558']// REFRACTION
 ]
 
 function findETHPair(address: string): string[] {

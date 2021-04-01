@@ -7,7 +7,7 @@ import { User, Bundle, Token, LiquidityPosition, LiquidityPositionSnapshot, Pair
 import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const FACTORY_ADDRESS = '0xb81840e1a8dd08d66465145ab7082d1e5df57544'
+export const FACTORY_ADDRESS = '0xeac9260c59693f180936779451b996b303a0a488'
 
 export let ZERO_BI = BigInt.fromI32(0)
 export let ONE_BI = BigInt.fromI32(1)
@@ -54,14 +54,6 @@ export function isNullEthValue(value: string): boolean {
 }
 
 export function fetchTokenSymbol(tokenAddress: Address): string {
-  // hard coded overrides
-  if (tokenAddress.toHexString() == '0xe0b7927c4af23765cb51314a0e0521a9645f0e2a') {
-    return 'DGD'
-  }
-  if (tokenAddress.toHexString() == '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9') {
-    return 'AAVE'
-  }
-
   let contract = ERC20.bind(tokenAddress)
   let contractSymbolBytes = ERC20SymbolBytes.bind(tokenAddress)
 
@@ -84,14 +76,6 @@ export function fetchTokenSymbol(tokenAddress: Address): string {
 }
 
 export function fetchTokenName(tokenAddress: Address): string {
-  // hard coded overrides
-  if (tokenAddress.toHexString() == '0xe0b7927c4af23765cb51314a0e0521a9645f0e2a') {
-    return 'DGD'
-  }
-  if (tokenAddress.toHexString() == '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9') {
-    return 'Aave Token'
-  }
-
   let contract = ERC20.bind(tokenAddress)
   let contractNameBytes = ERC20NameBytes.bind(tokenAddress)
 
@@ -124,11 +108,6 @@ export function fetchTokenTotalSupply(tokenAddress: Address): BigInt {
 }
 
 export function fetchTokenDecimals(tokenAddress: Address): BigInt {
-  // hardcode overrides
-  if (tokenAddress.toHexString() == '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9') { // AAVE
-    return BigInt.fromI32(18)
-  }
-
   let contract = ERC20.bind(tokenAddress)
   // try types uint8 for decimals
   let decimalValue = null
@@ -167,9 +146,9 @@ export function createUser(address: Address): void {
 export function createTokensFromUniswapPair(address: string): string[] {
   let token0Addr: string = null, token1Addr: string = null
   // USDT
-  if (address == '0x372d9eb2695afa280d113b94e4a022ecadaaea76') {
-    token0Addr = '0x80c2553261f77b00dcaadfd3612403ac7f67b6fb'
-    token1Addr = '0xb4ddda7771593267bf337cabec6988049e30f359'
+  if (address == '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852') {
+    token0Addr = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+    token1Addr = '0xdac17f958d2ee523a2206206994597c13d831ec7'
   }
   if (token0Addr !== null && token1Addr !== null) {
     let token0 = Token.load(token0Addr)
