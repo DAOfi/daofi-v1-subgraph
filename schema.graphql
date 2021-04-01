@@ -129,7 +129,7 @@ type Transaction @entity {
   swaps: [Swap]!
   deposits: [Deposit]!
   withdrawals: [Withdraw]!
-  feeWithdrawals: [WithdrawFees]!
+  feeWithdrawals: [FeeWithdrawal]!
 }
 
 type Swap @entity {
@@ -191,7 +191,7 @@ type Withdraw @entity {
   amountUSD: BigDecimal!
 }
 
-type WithdrawFees @entity {
+type FeeWithdrawal @entity {
   # transaction hash + "-" + index in withdrawals Transaction array
   id: ID!
   transaction: Transaction!

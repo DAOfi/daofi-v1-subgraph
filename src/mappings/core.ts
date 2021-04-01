@@ -12,7 +12,7 @@ import {
   Swap as SwapEvent,
   Deposit as DepositEvent,
   Withdraw as WithdrawEvent,
-  WithdrawFees as WithdrawFeesEvent,
+  FeeWithdrawal as FeeWithdrawalEvent,
   Bundle,
   User
 } from '../types/schema'
@@ -432,7 +432,7 @@ export function handleWithdrawFees(event: WithdrawFees): void {
   tokenBase.derivedETH = findEthPerToken(tokenBase)
   tokenQuote.derivedETH = findEthPerToken(tokenQuote)
   let withdrawAmountETH = tokenQuote.derivedETH.times(tokenQuoteAmount).plus(tokenBase.derivedETH.times(tokenBaseAmount))
-  let withdraw: WithdrawFeesEvent = new WithdrawFeesEvent(
+  let withdraw: FeeWithdrawalEvent = new FeeWithdrawalEvent(
     event.transaction.hash
       .toHexString()
       .concat('-')
