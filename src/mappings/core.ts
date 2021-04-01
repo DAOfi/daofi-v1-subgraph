@@ -1,30 +1,30 @@
 import { PairHourData } from './../types/schema'
 /* eslint-disable prefer-const */
-import { BigInt, BigDecimal, store, Address } from '@graphprotocol/graph-ts'
+import { log, BigInt, BigDecimal, Address } from '@graphprotocol/graph-ts'
 import {
   Pair,
   Token,
-  DAOfiFactory,
+  Factory,
   Transaction,
-  DAOfiDayData,
+  DaofiDayData,
   PairDayData,
   TokenDayData,
   Swap as SwapEvent,
+  Deposit as DepositEvent,
+  Withdraw as WithdrawEvent,
   Bundle
 } from '../types/schema'
-import { Pair as PairContract, Swap, Deposit, Withdraw, WithdrawFees } from '../types/templates/Pair/Pair'
+import { Swap, Deposit, Withdraw, WithdrawFees } from '../types/templates/Pair/Pair'
 import { updatePairDayData, updateTokenDayData, updateDAOfiDayData, updatePairHourData } from './dayUpdates'
-import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
+import { getPairPrices, getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
 import {
+  createUser,
   convertTokenToDecimal,
-  ADDRESS_ZERO,
   FACTORY_ADDRESS,
   ONE_BI,
-  createUser,
   createLiquidityPosition,
   ZERO_BD,
-  BI_18,
-  createLiquiditySnapshot
+  createLiquiditySnapshot,
 } from './helpers'
 
 export function handleSwap(event: Swap): void {
@@ -69,12 +69,10 @@ export function handleSwap(event: Swap): void {
   // update tokenBase global volume and token liquidity stats
   tokenBase.tradeVolume = tokenBase.tradeVolume.plus(amountBaseIn.plus(amountBaseOut))
   tokenBase.tradeVolumeUSD = tokenBase.tradeVolumeUSD.plus(trackedAmountUSD)
-  tokenBase.untrackedVolumeUSD = tokenBase.untrackedVolumeUSD.plus(derivedAmountUSD)
 
   // update tokenQuote global volume and token liquidity stats
   tokenQuote.tradeVolume = tokenQuote.tradeVolume.plus(amountQuoteIn.plus(amountQuoteOut))
   tokenQuote.tradeVolumeUSD = tokenQuote.tradeVolumeUSD.plus(trackedAmountUSD)
-  tokenQuote.untrackedVolumeUSD = tokenQuote.untrackedVolumeUSD.plus(derivedAmountUSD)
 
   // update txn counts
   tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
@@ -84,361 +82,317 @@ export function handleSwap(event: Swap): void {
   pair.volumeUSD = pair.volumeUSD.plus(trackedAmountUSD)
   pair.volumeTokenBase = pair.volumeTokenBase.plus(amountBaseTotal)
   pair.volumeTokenQuote = pair.volumeTokenQuote.plus(amountQuoteTotal)
-  pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.plus(derivedAmountUSD)
   pair.txCount = pair.txCount.plus(ONE_BI)
   pair.save()
 
   // update global values, only used tracked amounts for volume
-  let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
-  daofi.totalVolumeUSD = daofi.totalVolumeUSD.plus(trackedAmountUSD)
-  daofi.totalVolumeETH = daofi.totalVolumeETH.plus(trackedAmountETH)
-  daofi.untrackedVolumeUSD = daofi.untrackedVolumeUSD.plus(derivedAmountUSD)
-  daofi.txCount = daofi.txCount.plus(ONE_BI)
+  let factory = Factory.load(FACTORY_ADDRESS)
+  factory.totalVolumeUSD = factory.totalVolumeUSD.plus(trackedAmountUSD)
+  factory.totalVolumeETH = factory.totalVolumeETH.plus(trackedAmountETH)
+  factory.txCount = factory.txCount.plus(ONE_BI)
 
   // save entities
   pair.save()
   tokenBase.save()
   tokenQuote.save()
-  daofi.save()
+  factory.save()
 
   let transaction = Transaction.load(event.transaction.hash.toHexString())
-  // if (transaction === null) {
-  //   transaction = new Transaction(event.transaction.hash.toHexString())
-  //   transaction.blockNumber = event.block.number
-  //   transaction.timestamp = event.block.timestamp
-  //   transaction.deposits = []
-  //   transaction.swaps = []
-  //   transaction.withdrawals = []
-  //   transaction.save()
-  // }
-  // let swaps = transaction.swaps
-  // let swap = new SwapEvent(
-  //   event.transaction.hash
-  //     .toHexString()
-  //     .concat('-')
-  //     .concat(BigInt.fromI32(swaps.length).toString())
-  // )
+  if (transaction === null) {
+    transaction = new Transaction(event.transaction.hash.toHexString())
+    transaction.blockNumber = event.block.number
+    transaction.timestamp = event.block.timestamp
+    transaction.deposits = []
+    transaction.swaps = []
+    transaction.withdrawals = []
+    transaction.feeWithdrawals = []
+    transaction.save()
+  }
+  let swaps = transaction.swaps
+  let swap = new SwapEvent(
+    event.transaction.hash
+      .toHexString()
+      .concat('-')
+      .concat(BigInt.fromI32(swaps.length).toString())
+  )
 
-  // // update swap event
-  // swap.pair = pair.id
-  // swap.timestamp = transaction.timestamp
-  // swap.transaction = transaction.id
-  // swap.sender = event.params.sender
-  // swap.amountBaseIn = amountBaseIn
-  // swap.amountQuoteIn = amountQuoteIn
-  // swap.amountBaseOut = amountBaseOut
-  // swap.amountQuoteOut = amountQuoteOut
-  // swap.to = event.params.to
-  // swap.logIndex = event.logIndex
-  // // use the tracked amount if we have it
-  // swap.amountUSD = trackedAmountUSD === ZERO_BD ? derivedAmountUSD : trackedAmountUSD
-  // swap.save()
+  // update swap event
+  swap.pair = pair.id
+  swap.timestamp = transaction.timestamp
+  swap.transaction = transaction.id
+  swap.sender = event.params.sender
+  swap.amountIn = amountBaseIn.plus(amountQuoteIn)
+  swap.amountOut = amountBaseOut.plus(amountQuoteOut)
+  swap.tokenIn = tokenIn.id
+  swap.tokenOut = tokenOut.id
+  swap.to = event.params.to
+  swap.logIndex = event.logIndex
+  // use the tracked amount if we have it
+  swap.amountUSD = trackedAmountUSD === ZERO_BD ? derivedAmountUSD : trackedAmountUSD
+  swap.save()
 
-  // // update the transaction
-  // swaps.push(swap.id)
-  // transaction.swaps = swaps
-  // transaction.save()
+  // update the transaction
+  swaps.push(swap.id)
+  transaction.swaps = swaps
+  transaction.save()
 
-  // // update day entities
-  // updatePairDayData(event)
-  // updatePairHourData(event)
-  // updateDAOfiDayData(event)
-  // updateTokenDayData(tokenBase as Token, event)
-  // updateTokenDayData(tokenQuote as Token, event)
+  // update day entities
+  updatePairDayData(event)
+  updatePairHourData(event)
+  updateDAOfiDayData(event)
+  updateTokenDayData(tokenBase as Token, event)
+  updateTokenDayData(tokenQuote as Token, event)
 
-  // let timestamp = event.block.timestamp.toI32()
-  // // daily info
-  // let dayID = timestamp / 86400
-  // let dayPairID = event.address
-  //   .toHexString()
-  //   .concat('-')
-  //   .concat(BigInt.fromI32(dayID).toString())
+  let timestamp = event.block.timestamp.toI32()
+  // daily info
+  let dayID = timestamp / 86400
+  let dayPairID = event.address
+    .toHexString()
+    .concat('-')
+    .concat(BigInt.fromI32(dayID).toString())
 
-  // // hourly info
-  // let hourID = timestamp / 3600
-  // let hourPairID = event.address
-  //   .toHexString()
-  //   .concat('-')
-  //   .concat(BigInt.fromI32(hourID).toString())
+  // hourly info
+  let hourID = timestamp / 3600
+  let hourPairID = event.address
+    .toHexString()
+    .concat('-')
+    .concat(BigInt.fromI32(hourID).toString())
 
-  // // swap specific updating
-  // let daofiDayData = DAOfiDayData.load(dayID.toString())
-  // daofiDayData.dailyVolumeUSD = daofiDayData.dailyVolumeUSD.plus(trackedAmountUSD)
-  // daofiDayData.dailyVolumeETH = daofiDayData.dailyVolumeETH.plus(trackedAmountETH)
-  // daofiDayData.dailyVolumeUntracked = daofiDayData.dailyVolumeUntracked.plus(derivedAmountUSD)
-  // daofiDayData.save()
+  // swap specific updating
+  let daofiDayData = DaofiDayData.load(dayID.toString())
+  daofiDayData.dailyVolumeUSD = daofiDayData.dailyVolumeUSD.plus(trackedAmountUSD)
+  daofiDayData.dailyVolumeETH = daofiDayData.dailyVolumeETH.plus(trackedAmountETH)
+  daofiDayData.save()
 
-  // // swap specific updating for pair
-  // let pairDayData = PairDayData.load(dayPairID)
-  // pairDayData.dailyVolumeTokenBase = pairDayData.dailyVolumeTokenBase.plus(amountBaseTotal)
-  // pairDayData.dailyVolumeTokenQuote = pairDayData.dailyVolumeTokenQuote.plus(amountQuoteTotal)
-  // pairDayData.dailyVolumeUSD = pairDayData.dailyVolumeUSD.plus(trackedAmountUSD)
-  // pairDayData.save()
+  // swap specific updating for pair
+  let pairDayData = PairDayData.load(dayPairID)
+  pairDayData.dailyVolumeTokenBase = pairDayData.dailyVolumeTokenBase.plus(amountBaseTotal)
+  pairDayData.dailyVolumeTokenQuote = pairDayData.dailyVolumeTokenQuote.plus(amountQuoteTotal)
+  pairDayData.dailyVolumeUSD = pairDayData.dailyVolumeUSD.plus(trackedAmountUSD)
+  pairDayData.save()
 
-  // // update hourly pair data
-  // let pairHourData = PairHourData.load(hourPairID)
-  // pairHourData.hourlyVolumeTokenBase = pairHourData.hourlyVolumeTokenBase.plus(amountBaseTotal)
-  // pairHourData.hourlyVolumeTokenQuote = pairHourData.hourlyVolumeTokenQuote.plus(amountQuoteTotal)
-  // pairHourData.hourlyVolumeUSD = pairHourData.hourlyVolumeUSD.plus(trackedAmountUSD)
-  // pairHourData.save()
+  // update hourly pair data
+  let pairHourData = PairHourData.load(hourPairID)
+  pairHourData.hourlyVolumeTokenBase = pairHourData.hourlyVolumeTokenBase.plus(amountBaseTotal)
+  pairHourData.hourlyVolumeTokenQuote = pairHourData.hourlyVolumeTokenQuote.plus(amountQuoteTotal)
+  pairHourData.hourlyVolumeUSD = pairHourData.hourlyVolumeUSD.plus(trackedAmountUSD)
+  pairHourData.save()
 
-  // // swap specific updating for tokenBase
-  // let token0DayID = tokenBase.id
-  //   .toString()
-  //   .concat('-')
-  //   .concat(BigInt.fromI32(dayID).toString())
-  // let token0DayData = TokenDayData.load(token0DayID)
-  // token0DayData.dailyVolumeToken = token0DayData.dailyVolumeToken.plus(amountBaseTotal)
-  // token0DayData.dailyVolumeETH = token0DayData.dailyVolumeETH.plus(amountBaseTotal.times(tokenQuote.derivedETH as BigDecimal))
-  // token0DayData.dailyVolumeUSD = token0DayData.dailyVolumeUSD.plus(
-  //   amountBaseTotal.times(tokenBase.derivedETH as BigDecimal).times(bundle.ethPrice)
-  // )
-  // token0DayData.save()
+  // swap specific updating for tokenBase
+  let tokenBaseDayID = tokenBase.id
+    .toString()
+    .concat('-')
+    .concat(BigInt.fromI32(dayID).toString())
+  let tokenBaseDayData = TokenDayData.load(tokenBaseDayID)
+  tokenBaseDayData.dailyVolumeToken = tokenBaseDayData.dailyVolumeToken.plus(amountBaseTotal)
+  tokenBaseDayData.dailyVolumeETH = tokenBaseDayData.dailyVolumeETH.plus(amountBaseTotal.times(tokenQuote.derivedETH as BigDecimal))
+  tokenBaseDayData.dailyVolumeUSD = tokenBaseDayData.dailyVolumeUSD.plus(
+    amountBaseTotal.times(tokenBase.derivedETH as BigDecimal).times(bundle.ethPrice)
+  )
+  tokenBaseDayData.save()
 
-  // // swap specific updating
-  // let token1DayID = tokenQuote.id
-  //   .toString()
-  //   .concat('-')
-  //   .concat(BigInt.fromI32(dayID).toString())
-  // let token1DayData = TokenDayData.load(token1DayID)
-  // token1DayData = TokenDayData.load(token1DayID)
-  // token1DayData.dailyVolumeToken = token1DayData.dailyVolumeToken.plus(amountQuoteTotal)
-  // token1DayData.dailyVolumeETH = token1DayData.dailyVolumeETH.plus(amountQuoteTotal.times(tokenQuote.derivedETH as BigDecimal))
-  // token1DayData.dailyVolumeUSD = token1DayData.dailyVolumeUSD.plus(
-  //   amountQuoteTotal.times(tokenQuote.derivedETH as BigDecimal).times(bundle.ethPrice)
-  // )
-  // token1DayData.save()
-  // let pair1 = Pair.load(event.address.toHex())
-  // let tokenBase = Token.load(pair1.baseToken)
-  // let tokenQuote = Token.load(pair1.quoteToken)
-  // let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
+  // swap specific updating
+  let tokenQuoteDayID = tokenQuote.id
+    .toString()
+    .concat('-')
+    .concat(BigInt.fromI32(dayID).toString())
+  let tokenQuoteDayData = TokenDayData.load(tokenQuoteDayID)
+  tokenQuoteDayData = TokenDayData.load(tokenQuoteDayID)
+  tokenQuoteDayData.dailyVolumeToken = tokenQuoteDayData.dailyVolumeToken.plus(amountQuoteTotal)
+  tokenQuoteDayData.dailyVolumeETH = tokenQuoteDayData.dailyVolumeETH.plus(amountQuoteTotal.times(tokenQuote.derivedETH as BigDecimal))
+  tokenQuoteDayData.dailyVolumeUSD = tokenQuoteDayData.dailyVolumeUSD.plus(
+    amountQuoteTotal.times(tokenQuote.derivedETH as BigDecimal).times(bundle.ethPrice)
+  )
+  tokenQuoteDayData.save()
 
-  // // reset factory liquidity by subtracting onluy tarcked liquidity
-  // daofi.totalLiquidityETH = daofi.totalLiquidityETH.minus(pair1.trackedReserveETH as BigDecimal)
+  // reset factory liquidity by subtracting onluy tarcked liquidity
+  factory.totalLiquidityETH = factory.totalLiquidityETH.minus(pair.reserveETH as BigDecimal)
 
-  // // reset token total liquidity amounts
-  // tokenBase.totalLiquidity = tokenBase.totalLiquidity.minus(pair1.reserve0)
-  // tokenQuote.totalLiquidity = tokenQuote.totalLiquidity.minus(pair1.reserve1)
+  // set token total liquidity amounts
+  tokenBase.totalLiquidity = tokenBase.totalLiquidity.plus(amountBaseIn).minus(amountBaseOut)
+  tokenQuote.totalLiquidity = tokenQuote.totalLiquidity.plus(amountQuoteIn).minus(amountQuoteOut)
 
-  // pair1.reserve0 = convertTokenToDecimal(event.params.reserve0, tokenBase.decimals)
-  // pair1.reserve1 = convertTokenToDecimal(event.params.reserve1, tokenQuote.decimals)
+  if (pair.reserveQuote.notEqual(ZERO_BD))
+    pair.tokenBasePrice = pair.supply.times(pair.slopeNumerator.toBigDecimal()).div(BigDecimal.fromString('1000000'))
+  else
+    pair.tokenBasePrice = ZERO_BD
+  if (pair.tokenBasePrice.notEqual(ZERO_BD))
+    pair.tokenQuotePrice = BigDecimal.fromString('1').div(pair.tokenBasePrice)
+  else
+    pair.tokenQuotePrice = ZERO_BD
 
-  // if (pair1.reserve1.notEqual(ZERO_BD))
-  //   pair1.tokenBasePrice = pair1.reserve0.div(pair1.reserve1)
-  // else
-  //   pair1.tokenBasePrice = ZERO_BD
-  // if (pair1.reserve0.notEqual(ZERO_BD))
-  //   pair1.tokenQuotePrice = pair1.reserve1.div(pair1.reserve0)
-  // else
-  //   pair1.tokenQuotePrice = ZERO_BD
+  pair.save()
 
-  // pair1.save()
+  // update ETH price now that reserves could have changed
+  bundle.ethPrice = getEthPriceInUSD()
+  bundle.save()
 
-  // // update ETH price now that reserves could have changed
-  // let bundle = Bundle.load('1')
-  // bundle.ethPrice = getEthPriceInUSD()
-  // bundle.save()
+  tokenBase.derivedETH = findEthPerToken(tokenBase as Token)
+  tokenQuote.derivedETH = findEthPerToken(tokenQuote as Token)
+  tokenBase.save()
+  tokenQuote.save()
 
-  // tokenBase.derivedETH = findEthPerToken(tokenBase as Token)
-  // tokenQuote.derivedETH = findEthPerToken(tokenQuote as Token)
-  // tokenBase.save()
-  // tokenQuote.save()
+  // get tracked liquidity - will be 0 if neither is in whitelist
+  let trackedLiquidityETH: BigDecimal
+  if (bundle.ethPrice.notEqual(ZERO_BD)) {
+    trackedLiquidityETH = getTrackedLiquidityUSD(pair.reserveBase, tokenBase as Token, pair.reserveQuote, tokenQuote as Token).div(
+      bundle.ethPrice
+    )
+  } else {
+    trackedLiquidityETH = ZERO_BD
+  }
 
-  // // get tracked liquidity - will be 0 if neither is in whitelist
-  // let trackedLiquidityETH: BigDecimal
-  // if (bundle.ethPrice.notEqual(ZERO_BD)) {
-  //   trackedLiquidityETH = getTrackedLiquidityUSD(pair1.reserve0, tokenBase as Token, pair1.reserve1, tokenQuote as Token).div(
-  //     bundle.ethPrice
-  //   )
-  // } else {
-  //   trackedLiquidityETH = ZERO_BD
-  // }
+  // use derived amounts within pair
+  pair.reserveETH = pair.reserveBase
+    .times(tokenBase.derivedETH as BigDecimal)
+    .plus(pair.reserveQuote.times(tokenQuote.derivedETH as BigDecimal))
+  pair.reserveUSD = pair.reserveETH.times(bundle.ethPrice)
 
-  // // use derived amounts within pair1
-  // pair1.trackedReserveETH = trackedLiquidityETH
-  // pair1.reserveETH = pair1.reserve0
-  //   .times(tokenBase.derivedETH as BigDecimal)
-  //   .plus(pair1.reserve1.times(tokenQuote.derivedETH as BigDecimal))
-  // pair1.reserveUSD = pair1.reserveETH.times(bundle.ethPrice)
+  // use tracked amounts globally
+  factory.totalLiquidityETH = factory.totalLiquidityETH.plus(trackedLiquidityETH)
+  factory.totalLiquidityUSD = factory.totalLiquidityETH.times(bundle.ethPrice)
 
-  // // use tracked amounts globally
-  // daofi.totalLiquidityETH = daofi.totalLiquidityETH.plus(trackedLiquidityETH)
-  // daofi.totalLiquidityUSD = daofi.totalLiquidityETH.times(bundle.ethPrice)
+  // save entities
+  pair.save()
+  factory.save()
+  tokenBase.save()
+  tokenQuote.save()
+}
 
-  // // now correctly set liquidity amounts for each token
-  // tokenBase.totalLiquidity = tokenBase.totalLiquidity.plus(pair1.reserve0)
-  // tokenQuote.totalLiquidity = tokenQuote.totalLiquidity.plus(pair1.reserve1)
 
-  // // save entities
-  // pair1.save()
-  // daofi.save()
-  // tokenBase.save()
-  // tokenQuote.save()
+function isCompleteDeposit(depositId: string): boolean {
+  return DepositEvent.load(depositId).sender !== null // sufficient checks
 }
 
 export function handleDeposit(event: Deposit): void {
-//   let transaction = Transaction.load(event.transaction.hash.toHexString())
-//   let mints = transaction.mints
-//   let mint = MintEvent.load(mints[mints.length - 1])
+  let transaction = Transaction.load(event.transaction.hash.toHexString())
+  let pair = Pair.load(event.address.toHex())
+  let factory = Factory.load(FACTORY_ADDRESS)
+  let tokenBase = Token.load(pair.tokenBase)
+  let tokenQuote = Token.load(pair.tokenQuote)
+  let tokenBaseAmount = convertTokenToDecimal(event.params.amountBase, tokenBase.decimals)
+  let tokenQuoteAmount = convertTokenToDecimal(event.params.amountQuote, tokenQuote.decimals)
+  let baseOut = convertTokenToDecimal(event.params.output, tokenQuote.decimals)
+  let deposits = transaction.deposits
+  // update tokens
+  tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
+  tokenQuote.txCount = tokenQuote.txCount.plus(ONE_BI)
+  tokenBase.totalLiquidity = tokenBase.totalLiquidity.plus(tokenBaseAmount)
+  tokenQuote.totalLiquidity = tokenQuote.totalLiquidity.plus(tokenQuoteAmount)
+  tokenBase.derivedETH = findEthPerToken(tokenBase)
+  tokenQuote.derivedETH = findEthPerToken(tokenQuote)
+  // update factory
+  factory.txCount = factory.txCount.plus(ONE_BI)
+  let depositAmountETH = tokenQuote.derivedETH.times(tokenQuoteAmount).plus(tokenBase.derivedETH.times(tokenBaseAmount))
+  factory.totalLiquidityETH = factory.totalLiquidityETH.plus(depositAmountETH)
+  let bundle = Bundle.load('1')
+  factory.totalLiquidityUSD = factory.totalLiquidityETH.times(bundle.ethPrice)
+  // update deposit
+  if (deposits.length === 0 || isCompleteDeposit(deposits[deposits.length - 1])) {
+    let deposit: DepositEvent = new DepositEvent(
+      event.transaction.hash
+        .toHexString()
+        .concat('-')
+        .concat(BigInt.fromI32(deposits.length).toString())
+    )
+    deposit.transaction = transaction.id
+    deposit.timestamp = transaction.timestamp
+    deposit.pair = event.address.toHexString()
+    deposit.sender = event.params.sender
+    deposit.amountBase = tokenBaseAmount
+    deposit.amountQuote = tokenQuoteAmount
+    deposit.output = pair.supply = baseOut
+    deposit.to = event.params.to
+    deposit.logIndex = event.logIndex
+    deposit.amountUSD = depositAmountETH.times(bundle.ethPrice)
+    transaction.deposits = deposits.concat([deposit.id])
 
-//   let pair = Pair.load(event.address.toHex())
-//   let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
+    // create users
+    createUser(event.params.sender)
+    createUser(event.params.to)
 
-//   let tokenBase = Token.load(pair.baseToken)
-//   let tokenQuote = Token.load(pair.quoteToken)
+    // update the LP position
+    let liquidityPosition = createLiquidityPosition(event.address, deposit.to as Address)
+    createLiquiditySnapshot(liquidityPosition, event)
+    deposit.save()
+  }
+  // update pair
+  pair.txCount = pair.txCount.plus(ONE_BI)
+  pair.reserveBase = tokenBaseAmount
+  pair.reserveQuote = tokenQuoteAmount
+  pair.reserveETH = depositAmountETH
+  pair.reserveUSD = depositAmountETH.times(bundle.ethPrice)
+  let pairPrices = getPairPrices(pair.id)
+  pair.tokenBasePrice = pairPrices[0]
+  pair.tokenQuotePrice = pairPrices[1]
 
-//   // update exchange info (except balances, sync will cover that)
-//   let token0Amount = convertTokenToDecimal(event.params.amount0, tokenBase.decimals)
-//   let token1Amount = convertTokenToDecimal(event.params.amount1, tokenQuote.decimals)
+  // save entities
+  transaction.save()
+  tokenBase.save()
+  tokenQuote.save()
+  pair.save()
+  factory.save()
 
-//   // update txn counts
-//   tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
-//   tokenQuote.txCount = tokenQuote.txCount.plus(ONE_BI)
-
-//   // get new amounts of USD and ETH for tracking
-//   let bundle = Bundle.load('1')
-//   let amountTotalUSD = tokenQuote.derivedETH
-//     .times(token1Amount)
-//     .plus(tokenBase.derivedETH.times(token0Amount))
-//     .times(bundle.ethPrice)
-
-//   // update txn counts
-//   pair.txCount = pair.txCount.plus(ONE_BI)
-//   daofi.txCount = daofi.txCount.plus(ONE_BI)
-
-//   // save entities
-//   tokenBase.save()
-//   tokenQuote.save()
-//   pair.save()
-//   daofi.save()
-
-//   mint.sender = event.params.sender
-//   mint.amount0 = token0Amount as BigDecimal
-//   mint.amount1 = token1Amount as BigDecimal
-//   mint.logIndex = event.logIndex
-//   mint.amountUSD = amountTotalUSD as BigDecimal
-//   mint.save()
-
-//   // update the LP position
-//   let liquidityPosition = createLiquidityPosition(event.address, mint.to as Address)
-//   createLiquiditySnapshot(liquidityPosition, event)
-
-//   // update day entities
-//   updatePairDayData(event)
-//   updatePairHourData(event)
-//   updateDAOfiDayData(event)
-//   updateTokenDayData(tokenBase as Token, event)
-//   updateTokenDayData(tokenQuote as Token, event)
+  // update day entities
+  updatePairDayData(event)
+  updatePairHourData(event)
+  updateDAOfiDayData(event)
+  updateTokenDayData(tokenBase as Token, event)
+  updateTokenDayData(tokenQuote as Token, event)
 }
 
 export function handleWithdraw(event: Withdraw): void {
-//   let transaction = Transaction.load(event.transaction.hash.toHexString())
-//   let burns = transaction.burns
-//   let burn = BurnEvent.load(burns[burns.length - 1])
+  let transaction = Transaction.load(event.transaction.hash.toHexString())
+  let withdrawals = transaction.withdrawals
+  let withdraw = WithdrawEvent.load(withdrawals[withdrawals.length - 1])
 
-//   let pair = Pair.load(event.address.toHex())
-//   let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
+  let pair = Pair.load(event.address.toHex())
+  let factory = Factory.load(FACTORY_ADDRESS)
 
-//   //update token info
-//   let tokenBase = Token.load(pair.baseToken)
-//   let tokenQuote = Token.load(pair.quoteToken)
-//   let token0Amount = convertTokenToDecimal(event.params.amount0, tokenBase.decimals)
-//   let token1Amount = convertTokenToDecimal(event.params.amount1, tokenQuote.decimals)
+  //update token info
+  let tokenBase = Token.load(pair.tokenBase)
+  let tokenQuote = Token.load(pair.tokenQuote)
+  let tokenBaseAmount = convertTokenToDecimal(event.params.amountBase, tokenBase.decimals)
+  let tokenQuoteAmount = convertTokenToDecimal(event.params.amountQuote, tokenQuote.decimals)
 
-//   // update txn counts
-//   tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
-//   tokenQuote.txCount = tokenQuote.txCount.plus(ONE_BI)
+  // update txn counts
+  tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
+  tokenQuote.txCount = tokenQuote.txCount.plus(ONE_BI)
 
-//   // get new amounts of USD and ETH for tracking
-//   let bundle = Bundle.load('1')
-//   let amountTotalUSD = tokenQuote.derivedETH
-//     .times(token1Amount)
-//     .plus(tokenBase.derivedETH.times(token0Amount))
-//     .times(bundle.ethPrice)
+  // get new amounts of USD and ETH for tracking
+  let bundle = Bundle.load('1')
+  let amountTotalUSD = tokenQuote.derivedETH
+    .times(tokenQuoteAmount)
+    .plus(tokenBase.derivedETH.times(tokenBaseAmount))
+    .times(bundle.ethPrice)
 
-//   // update txn counts
-//   daofi.txCount = daofi.txCount.plus(ONE_BI)
-//   pair.txCount = pair.txCount.plus(ONE_BI)
+  // update txn counts
+  factory.txCount = factory.txCount.plus(ONE_BI)
+  pair.txCount = pair.txCount.plus(ONE_BI)
 
-//   // update global counter and save
-//   tokenBase.save()
-//   tokenQuote.save()
-//   pair.save()
-//   daofi.save()
+  // update global counter and save
+  tokenBase.save()
+  tokenQuote.save()
+  pair.save()
+  factory.save()
 
-//   // update burn
-//   // burn.sender = event.params.sender
-//   burn.amount0 = token0Amount as BigDecimal
-//   burn.amount1 = token1Amount as BigDecimal
-//   // burn.to = event.params.to
-//   burn.logIndex = event.logIndex
-//   burn.amountUSD = amountTotalUSD as BigDecimal
-//   burn.save()
+  // update withdraw
+  // withdraw.sender = event.params.sender
+  withdraw.amountBase = tokenBaseAmount as BigDecimal
+  withdraw.amountQuote = tokenQuoteAmount as BigDecimal
+  // withdraw.to = event.params.to
+  withdraw.logIndex = event.logIndex
+  withdraw.amountUSD = amountTotalUSD as BigDecimal
+  withdraw.save()
 
-//   // update the LP position
-//   let liquidityPosition = createLiquidityPosition(event.address, burn.sender as Address)
-//   createLiquiditySnapshot(liquidityPosition, event)
+  // update the LP position
+  let liquidityPosition = createLiquidityPosition(event.address, withdraw.sender as Address)
+  createLiquiditySnapshot(liquidityPosition, event)
 
-//   // update day entities
-//   updatePairDayData(event)
-//   updatePairHourData(event)
-//   updateDAOfiDayData(event)
-//   updateTokenDayData(tokenBase as Token, event)
-//   updateTokenDayData(tokenQuote as Token, event)
-}
-
-export function handleWithdrawFees(event: WithdrawFees): void {
-//   let transaction = Transaction.load(event.transaction.hash.toHexString())
-//   let burns = transaction.burns
-//   let burn = BurnEvent.load(burns[burns.length - 1])
-
-//   let pair = Pair.load(event.address.toHex())
-//   let daofi = DAOfiFactory.load(FACTORY_ADDRESS)
-
-//   //update token info
-//   let tokenBase = Token.load(pair.baseToken)
-//   let tokenQuote = Token.load(pair.quoteToken)
-//   let token0Amount = convertTokenToDecimal(event.params.amount0, tokenBase.decimals)
-//   let token1Amount = convertTokenToDecimal(event.params.amount1, tokenQuote.decimals)
-
-//   // update txn counts
-//   tokenBase.txCount = tokenBase.txCount.plus(ONE_BI)
-//   tokenQuote.txCount = tokenQuote.txCount.plus(ONE_BI)
-
-//   // get new amounts of USD and ETH for tracking
-//   let bundle = Bundle.load('1')
-//   let amountTotalUSD = tokenQuote.derivedETH
-//     .times(token1Amount)
-//     .plus(tokenBase.derivedETH.times(token0Amount))
-//     .times(bundle.ethPrice)
-
-//   // update txn counts
-//   daofi.txCount = daofi.txCount.plus(ONE_BI)
-//   pair.txCount = pair.txCount.plus(ONE_BI)
-
-//   // update global counter and save
-//   tokenBase.save()
-//   tokenQuote.save()
-//   pair.save()
-//   daofi.save()
-
-//   // update burn
-//   // burn.sender = event.params.sender
-//   burn.amount0 = token0Amount as BigDecimal
-//   burn.amount1 = token1Amount as BigDecimal
-//   // burn.to = event.params.to
-//   burn.logIndex = event.logIndex
-//   burn.amountUSD = amountTotalUSD as BigDecimal
-//   burn.save()
-
-//   // update the LP position
-//   let liquidityPosition = createLiquidityPosition(event.address, burn.sender as Address)
-//   createLiquiditySnapshot(liquidityPosition, event)
-
-//   // update day entities
-//   updatePairDayData(event)
-//   updatePairHourData(event)
-//   updateDAOfiDayData(event)
-//   updateTokenDayData(tokenBase as Token, event)
-//   updateTokenDayData(tokenQuote as Token, event)
+  // update day entities
+  updatePairDayData(event)
+  updatePairHourData(event)
+  updateDAOfiDayData(event)
+  updateTokenDayData(tokenBase as Token, event)
+  updateTokenDayData(tokenQuote as Token, event)
 }

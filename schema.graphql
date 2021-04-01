@@ -1,4 +1,4 @@
-type DAOfiFactory @entity {
+type Factory @entity {
   # factory address
   id: ID!
 
@@ -8,9 +8,6 @@ type DAOfiFactory @entity {
   # total volume
   totalVolumeUSD: BigDecimal!
   totalVolumeETH: BigDecimal!
-
-  # untracked values - less confident USD scores
-  untrackedVolumeUSD: BigDecimal!
 
   # total liquidity
   totalLiquidityUSD: BigDecimal!
@@ -35,7 +32,6 @@ type Token @entity {
   # token specific volume
   tradeVolume: BigDecimal!
   tradeVolumeUSD: BigDecimal!
-  untrackedVolumeUSD: BigDecimal!
 
   # transactions across all pairs
   txCount: BigInt!
@@ -61,12 +57,11 @@ type Pair @entity {
   reserveBase: BigDecimal!
   reserveQuote: BigDecimal!
   supply: BigDecimal!
-  totalSupply: BigDecimal!
 
   # derived liquidity
   reserveETH: BigDecimal!
   reserveUSD: BigDecimal!
-  trackedReserveETH: BigDecimal! # used for separating per pair reserves and global
+
   # Price in terms of the asset pair
   tokenBasePrice: BigDecimal!
   tokenQuotePrice: BigDecimal!
@@ -75,15 +70,26 @@ type Pair @entity {
   volumeTokenBase: BigDecimal!
   volumeTokenQuote: BigDecimal!
   volumeUSD: BigDecimal!
-  untrackedVolumeUSD: BigDecimal!
   txCount: BigInt!
 
   # creation stats
   createdAtTimestamp: BigInt!
   createdAtBlockNumber: BigInt!
+}
 
-  # Fields used to help derived relationship
-  liquidityProviderCount: BigInt! # used to detect new exchanges
+type UniswapPair @entity {
+  # pair address
+  id: ID!
+
+  # mirrored from the smart contract
+  token0: Token!
+  token1: Token!
+  reserve0: BigDecimal!
+  reserve1: BigDecimal!
+
+  # Price in terms of the asset pair
+  token0Price: BigDecimal!
+  token1Price: BigDecimal!
 }
 
 type User @entity {
@@ -96,7 +102,6 @@ type LiquidityPosition @entity {
   id: ID!
   user: User!
   pair: Pair!
-  liquidityTokenBalance: BigDecimal!
   historicalSnapshots: [LiquidityPositionSnapshot]! @derivedFrom(field: "liquidityPosition")
 }
 
@@ -113,8 +118,6 @@ type LiquidityPositionSnapshot @entity {
   reserveBase: BigDecimal! # snapshot of pair tokenBase reserves
   reserveQuote: BigDecimal! # snapshot of pair tokenQuote reserves
   reserveUSD: BigDecimal! # snapshot of pair reserves in USD
-  liquidityTokenTotalSupply: BigDecimal! # snapshot of pool token supply
-  liquidityTokenBalance: BigDecimal! # snapshot of users pool token balance
 }
 
 type Transaction @entity {
@@ -124,6 +127,7 @@ type Transaction @entity {
   swaps: [Swap]!
   deposits: [Deposit]!
   withdrawals: [Withdraw]!
+  feeWithdrawals: [WithdrawFees]!
 }
 
 type Swap @entity {
@@ -135,10 +139,10 @@ type Swap @entity {
 
   # populated from the Swap event
   sender: Bytes!
-  tokenBase: Bytes!
-  tokenQuote: Bytes!
-  tokenIn: Bytes!
-  tokenOut: Bytes!
+  tokenBase: Token!
+  tokenQuote: Token!
+  tokenIn: Token!
+  tokenOut: Token!
   amountIn: BigDecimal!
   amountOut: BigDecimal!
   to: Bytes!
@@ -185,6 +189,24 @@ type Withdraw @entity {
   amountUSD: BigDecimal!
 }
 
+type WithdrawFees @entity {
+  # transaction hash + "-" + index in withdrawals Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+  pair: Pair!
+
+  # populated from the Withdraw event
+  sender: Bytes!
+  amountBase: BigDecimal!
+  amountQuote: BigDecimal!
+  to: Bytes!
+  logIndex: BigInt
+
+  # derived info
+  amountUSD: BigDecimal!
+}
+
 # stores for USD calculations
 type Bundle @entity {
   id: ID!
@@ -192,13 +214,12 @@ type Bundle @entity {
 }
 
 # Data accumulated and condensed into day stats for all of DAOfi
-type DAOfiDayData @entity {
+type DaofiDayData @entity {
   id: ID! # timestamp rounded to current day by dividing by 86400
   date: Int!
 
   dailyVolumeETH: BigDecimal!
   dailyVolumeUSD: BigDecimal!
-  dailyVolumeUntracked: BigDecimal!
 
   totalVolumeETH: BigDecimal!
   totalLiquidityETH: BigDecimal!
@@ -216,6 +237,7 @@ type PairHourData @entity {
   # reserves
   reserveBase: BigDecimal!
   reserveQuote: BigDecimal!
+  supply: BigDecimal!
 
   # derived liquidity
   reserveUSD: BigDecimal!
@@ -239,9 +261,6 @@ type PairDayData @entity {
   reserveBase: BigDecimal!
   reserveQuote: BigDecimal!
   supply: BigDecimal!
-
-  # total supply for LP historical returns
-  totalSupply: BigDecimal!
 
   # derived liquidity
   reserveUSD: BigDecimal!

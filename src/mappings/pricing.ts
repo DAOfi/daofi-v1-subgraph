@@ -1,57 +1,67 @@
 /* eslint-disable prefer-const */
-import { Pair, Token, Bundle } from '../types/schema'
+import { Pair, Token, UniswapPair, Bundle } from '../types/schema'
 import { BigDecimal, Address, BigInt } from '@graphprotocol/graph-ts/index'
-import { ZERO_BD, factoryContract, ADDRESS_ZERO, ONE_BD } from './helpers'
+import { convertTokenToDecimal, ZERO_BD, ONE_BD } from './helpers'
+import { Pair as PairContract } from '../types/templates/Pair/Pair'
 
-const WUSD_ADDRESS = '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d'
+const WETH_ADDRESS = '0x80c2553261f77b00dcaadfd3612403ac7f67b6fb'
+const USDT_WETH_PAIR = '0x372d9eb2695afa280d113b94e4a022ecadaaea76' // created block 10093341
 
 export function getEthPriceInUSD(): BigDecimal {
-  return ONE_BD
+  // fetch eth prices for each stablecoin
+  let usdtPair = UniswapPair.load(USDT_WETH_PAIR) // usdt is token1
+
+  if (usdtPair !== null) {
+    return usdtPair.token1Price
+  } else {
+    return ZERO_BD
+  }
 }
 
-// token where amounts should contribute to tracked volume and liquidity
-// map base token to quote token
-let WHITELIST = {
-  '0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1', 21500, 1, 0] // Wrapped Ether on xDai
+// whitelist [base token, pair address]
+let WHITELIST: string[][] = [
+  ['0xf4762ff096e046b3ae3abb428e255779d7befb16', '0xade4a5ce24f155d8f0720cfeb4f47f52f7dafd95'],// IDXM
+  ['0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2']// REFRACTION
 ]
 
-// minimum liquidity required to count towards tracked volume for pairs with small # of Lps
-let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')
-
-// minimum liquidity for price to get tracked
-let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
+function findETHPair(address: string): string[] {
+  for (let i = 0; i < WHITELIST.length; ++i) {
+    if (WHITELIST[i][0] == address)
+      return WHITELIST[i]
+  }
+  return []
+}
 
 /**
  * Search through graph to find derived Eth per token.
  * @todo update to be derived ETH (add stablecoin estimates)
  **/
-export function findEthPerToken(token: Token): BigDecimal {
-  if (token.id == WUSD_ADDRESS) {
+export function findEthPerToken(token: Token | null): BigDecimal {
+  if (token.id == WETH_ADDRESS) {
     return ONE_BD
   }
-
-  // loop through whitelist and check if paired with any
-  for (let i = 0; i < WHITELIST.length; ++i) {
-    let pairAddress = factoryContract.getPair(
-      Address.fromString(token.id),
-      Address.fromString(WHITELIST[i][0] as string),
-      BigInt.fromI32(WHITELIST[i][1] as number),
-      BigInt.fromI32(WHITELIST[i][2] as number),
-      BigInt.fromI32(WHITELIST[i][3] as number)
-    )
-    if (pairAddress.toHexString() != ADDRESS_ZERO) {
-      let pair = Pair.load(pairAddress.toHexString())
-      if (pair.tokenBase == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        let tokenQuote = Token.load(pair.tokenQuote)
-        return pair.tokenQuotePrice.times(tokenQuote.derivedETH as BigDecimal) // return tokenQuote per our token * Eth per token 1
-      }
-      if (pair.tokenQuote == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        let tokenBase = Token.load(pair.tokenBase)
-        return pair.tokenBasePrice.times(tokenBase.derivedETH as BigDecimal) // return tokenBase per our token * ETH per token 0
-      }
+  // lookuup pair
+  let ethPairInfo = findETHPair(token.id)
+  if (ethPairInfo.length) {
+    let pair = Pair.load(ethPairInfo[1])
+    let pairContract = PairContract.bind(Address.fromString(ethPairInfo[1]))
+    let tokenQuote = Token.load(pair.tokenQuote)
+    if (pair.tokenBase == token.id) {
+      return convertTokenToDecimal(pairContract.price(), tokenQuote.decimals)
+    }
+    if (pair.tokenQuote == token.id) {
+      return BigDecimal.fromString('1').div(convertTokenToDecimal(pairContract.price(), tokenQuote.decimals))
     }
   }
   return ZERO_BD // nothing was found return 0
+}
+
+export function getPairPrices(pairAddress: string): BigDecimal[] {
+  let pair = Pair.load(pairAddress)
+  let pairContract = PairContract.bind(Address.fromString(pairAddress))
+  let tokenQuote = Token.load(pair.tokenQuote)
+  let basePrice = convertTokenToDecimal(pairContract.price(), tokenQuote.decimals)
+  return [basePrice, BigDecimal.fromString('1').div(basePrice)]
 }
 
 /**
@@ -70,15 +80,9 @@ export function getTrackedVolumeUSD(
   let bundle = Bundle.load('1')
   let priceBase = tokenBase.derivedETH.times(bundle.ethPrice)
   let priceQuote = tokenQuote.derivedETH.times(bundle.ethPrice)
-
-  // take full value of the whitelisted token amount
-  if (WHITELIST.includes(tokenBase.id) && !WHITELIST.includes(tokenQuote.id)) {
+  let ethPair = findETHPair(tokenBase.id)
+  if (ethPair.length && ethPair[1] === tokenQuote.id) {
     return tokenAmountBase.times(priceBase)
-  }
-
-  // take full value of the whitelisted token amount
-  if (!WHITELIST.includes(tokenBase.id) && WHITELIST.includes(tokenQuote.id)) {
-    return tokenAmountQuote.times(priceQuote)
   }
 
   // neither token is on white list, tracked volume is 0
@@ -92,30 +96,19 @@ export function getTrackedVolumeUSD(
  * If neither is, return 0
  */
 export function getTrackedLiquidityUSD(
-  tokenAmountBase: BigDecimal,
-  tokenBase: Token,
   tokenAmountQuote: BigDecimal,
+  tokenBase: Token,
+  tokenAmount1: BigDecimal,
   tokenQuote: Token
 ): BigDecimal {
   let bundle = Bundle.load('1')
   let priceBase = tokenBase.derivedETH.times(bundle.ethPrice)
   let priceQuote = tokenQuote.derivedETH.times(bundle.ethPrice)
-
-  // both are whitelist tokens, take average of both amounts
-  if (WHITELIST.includes(tokenBase.id) && WHITELIST.includes(tokenQuote.id)) {
-    return tokenAmountBase.times(priceBase).plus(tokenAmountQuote.times(priceQuote))
+  let ethPair = findETHPair(tokenBase.id)
+  if (ethPair.length) {
+    return tokenAmountQuote.times(priceBase).plus(tokenAmount1.times(priceQuote))
   }
 
-  // take double value of the whitelisted token amount
-  if (WHITELIST.includes(tokenBase.id) && !WHITELIST.includes(tokenQuote.id)) {
-    return tokenAmountBase.times(priceBase).times(BigDecimal.fromString('2'))
-  }
-
-  // take double value of the whitelisted token amount
-  if (!WHITELIST.includes(tokenBase.id) && WHITELIST.includes(tokenQuote.id)) {
-    return tokenAmountQuote.times(priceQuote).times(BigDecimal.fromString('2'))
-  }
-
-  // neither token is on white list, tracked volume is 0
+  // token not on whitelist
   return ZERO_BD
 }

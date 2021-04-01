@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 import { log } from '@graphprotocol/graph-ts'
-import { DAOfiFactory, Pair, Token, Bundle } from '../types/schema'
+import { Factory, Pair, Token, Bundle, Transaction } from '../types/schema'
 import { PairCreated } from '../types/Factory/Factory'
 import { Pair as PairTemplate } from '../types/templates'
 import {
@@ -14,25 +14,29 @@ import {
 } from './helpers'
 
 export function handleNewPair(event: PairCreated): void {
+    // create the transaction
+  let transaction = Transaction.load(event.transaction.hash.toHexString())
+  if (transaction === null) {
+    transaction = new Transaction(event.transaction.hash.toHexString())
+    transaction.blockNumber = event.block.number
+    transaction.timestamp = event.block.timestamp
+    transaction.deposits = []
+    transaction.swaps = []
+    transaction.withdrawals = []
+    transaction.feeWithdrawals = []
+  }
   // load factory (create if first exchange)
-  let factory = DAOfiFactory.load(FACTORY_ADDRESS)
+  let factory = Factory.load(FACTORY_ADDRESS)
   if (factory == null) {
-    factory = new DAOfiFactory(FACTORY_ADDRESS)
+    factory = new Factory(FACTORY_ADDRESS)
     factory.pairCount = 0
     factory.totalVolumeETH = ZERO_BD
     factory.totalLiquidityETH = ZERO_BD
     factory.totalVolumeUSD = ZERO_BD
-    factory.untrackedVolumeUSD = ZERO_BD
     factory.totalLiquidityUSD = ZERO_BD
     factory.txCount = ZERO_BI
-
-    // create new bundle
-    let bundle = new Bundle('1')
-    bundle.ethPrice = ZERO_BD
-    bundle.save()
   }
   factory.pairCount = factory.pairCount + 1
-  factory.save()
 
   // create the tokens
   let tokenBase = Token.load(event.params.baseToken.toHexString())
@@ -44,20 +48,11 @@ export function handleNewPair(event: PairCreated): void {
     tokenBase.symbol = fetchTokenSymbol(event.params.baseToken)
     tokenBase.name = fetchTokenName(event.params.baseToken)
     tokenBase.totalSupply = fetchTokenTotalSupply(event.params.baseToken)
-    let decimals = fetchTokenDecimals(event.params.baseToken)
-    // bail if we couldn't figure out the decimals
-    if (decimals === null) {
-      log.debug('mybug the decimal on token 0 was null', [])
-      return
-    }
-
-    tokenBase.decimals = decimals
+    tokenBase.decimals = fetchTokenDecimals(event.params.baseToken)
     tokenBase.derivedETH = ZERO_BD
     tokenBase.tradeVolume = ZERO_BD
     tokenBase.tradeVolumeUSD = ZERO_BD
-    tokenBase.untrackedVolumeUSD = ZERO_BD
     tokenBase.totalLiquidity = ZERO_BD
-    // tokenBase.allPairs = []
     tokenBase.txCount = ZERO_BI
   }
 
@@ -67,19 +62,11 @@ export function handleNewPair(event: PairCreated): void {
     tokenQuote.symbol = fetchTokenSymbol(event.params.quoteToken)
     tokenQuote.name = fetchTokenName(event.params.quoteToken)
     tokenQuote.totalSupply = fetchTokenTotalSupply(event.params.quoteToken)
-    let decimals = fetchTokenDecimals(event.params.quoteToken)
-
-    // bail if we couldn't figure out the decimals
-    if (decimals === null) {
-      return
-    }
-    tokenQuote.decimals = decimals
+    tokenQuote.decimals = fetchTokenDecimals(event.params.quoteToken)
     tokenQuote.derivedETH = ZERO_BD
     tokenQuote.tradeVolume = ZERO_BD
     tokenQuote.tradeVolumeUSD = ZERO_BD
-    tokenQuote.untrackedVolumeUSD = ZERO_BD
     tokenQuote.totalLiquidity = ZERO_BD
-    // tokenQuote.allPairs = []
     tokenQuote.txCount = ZERO_BI
   }
 
@@ -90,20 +77,18 @@ export function handleNewPair(event: PairCreated): void {
   pair.slopeNumerator = event.params.slopeNumerator
   pair.n = event.params.n
   pair.fee = event.params.fee
-  pair.liquidityProviderCount = ZERO_BI
+
+  pair.supply = ZERO_BD
   pair.createdAtTimestamp = event.block.timestamp
   pair.createdAtBlockNumber = event.block.number
   pair.txCount = ZERO_BI
   pair.reserveBase = ZERO_BD
   pair.reserveQuote = ZERO_BD
-  pair.trackedReserveETH = ZERO_BD
   pair.reserveETH = ZERO_BD
   pair.reserveUSD = ZERO_BD
-  pair.totalSupply = ZERO_BD
   pair.volumeTokenBase = ZERO_BD
   pair.volumeTokenQuote = ZERO_BD
   pair.volumeUSD = ZERO_BD
-  pair.untrackedVolumeUSD = ZERO_BD
   pair.tokenBasePrice = ZERO_BD
   pair.tokenQuotePrice = ZERO_BD
 
@@ -111,8 +96,9 @@ export function handleNewPair(event: PairCreated): void {
   PairTemplate.create(event.params.pair)
 
   // save updated values
+  transaction.save()
+  factory.save()
   tokenBase.save()
   tokenQuote.save()
   pair.save()
-  factory.save()
 }
