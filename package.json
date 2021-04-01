@@ -8,9 +8,8 @@
     "build": "graph build",
     "create-local": "graph create alexanvl/daofi --node http://127.0.0.1:8020",
     "deploy-local": "graph deploy alexanvl/daofi --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
-    "deploy": "graph deploy DAOfi/daofi-v1 --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ --debug",
-    "deploy-staging": "graph deploy $THE_GRAPH_GITHUB_USER/$THE_GRAPH_SUBGRAPH_NAME /DAOfi --ipfs https://api.staging.thegraph.com/ipfs/ --node https://api.staging.thegraph.com/deploy/",
-    "watch-local": "graph deploy graphprotocol/DAOfi --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
+    "deploy": "graph deploy --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ DAOfi/daofi-v1",
+    "watch-local": "graph deploy alexanvl/daofi --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
   },
   "devDependencies": {
     "@graphprotocol/graph-cli": "0.20.0",
