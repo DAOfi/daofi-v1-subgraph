@@ -1,5 +1,5 @@
 # DAOfi V1 Subgraph 
-## (Forked from https://github.com/Uniswap/uniswap-v2-subgraph)
+### (Forked from https://github.com/Uniswap/uniswap-v2-subgraph)
 
 [DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange using bonding curves on Ethereum.
 
@@ -45,7 +45,7 @@ These contain specifc information about a transaction. Things like which pair tr
 
 ### Querying Aggregated DAOfi Data
 
-This query fetches aggredated data from all daofi pairs and tokens, to give a view into how much activity is happening within the whole protocol.
+This query fetches aggredated data from all DAOfi pairs and tokens, to give a view into how much activity is happening within the whole protocol.
 
 ```graphql
 {
