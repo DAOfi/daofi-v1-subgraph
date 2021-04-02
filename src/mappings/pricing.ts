@@ -38,6 +38,8 @@ function findETHPair(address: string): string[] {
  * @todo update to be derived ETH (add stablecoin estimates)
  **/
 export function findEthPerToken(token: Token | null): BigDecimal {
+  let result = ZERO_BD
+
   if (token.id == WETH_ADDRESS) {
     return ONE_BD
   }
@@ -47,27 +49,35 @@ export function findEthPerToken(token: Token | null): BigDecimal {
     let pair = Pair.load(ethPairInfo[1])
     let pairContract = PairContract.bind(Address.fromString(ethPairInfo[1]))
     let tokenQuote = Token.load(pair.tokenQuote)
-    if (pair.tokenBase == token.id) {
-      return convertTokenToDecimal(pairContract.price(), tokenQuote.decimals)
-    }
-    if (pair.tokenQuote == token.id) {
-      return BigDecimal.fromString('1').div(convertTokenToDecimal(pairContract.price(), tokenQuote.decimals))
+    let price = pairContract.try_price()
+    if (!price.reverted) {
+      if (pair.tokenBase == token.id) {
+        return convertTokenToDecimal(price.value, tokenQuote.decimals)
+      }
+      if (pair.tokenQuote == token.id) {
+        return BigDecimal.fromString('1').div(convertTokenToDecimal(pairContract.price(), tokenQuote.decimals))
+      }
     }
   }
-  return ZERO_BD // nothing was found return 0
+
+  return result // nothing was found return 0
 }
 
 export function updatePair(pair: Pair | null): void {
   let pairContract = PairContract.bind(Address.fromString(pair.id))
   let tokenQuote = Token.load(pair.tokenQuote)
   let tokenBase = Token.load(pair.tokenBase)
-  let basePrice = convertTokenToDecimal(pairContract.price(), tokenQuote.decimals)
-  pair.tokenBasePrice = basePrice
-  pair.tokenQuotePrice = BigDecimal.fromString('1').div(pair.tokenBasePrice)
-  pair.supply = convertTokenToDecimal(pairContract.supply(), tokenBase.decimals)
-  let reserves = pairContract.getReserves()
-  pair.reserveBase = convertTokenToDecimal(reserves.value0, tokenBase.decimals)
-  pair.reserveQuote = convertTokenToDecimal(reserves.value1, tokenQuote.decimals)
+  let price = pairContract.try_price()
+  let supply = pairContract.try_supply()
+  let reserves = pairContract.try_getReserves()
+  if (!price.reverted && !supply.reverted && !reserves.reverted) {
+    let basePrice = convertTokenToDecimal(price.value, tokenQuote.decimals)
+    pair.tokenBasePrice = basePrice
+    pair.tokenQuotePrice = BigDecimal.fromString('1').div(pair.tokenBasePrice)
+    pair.supply = convertTokenToDecimal(supply.value, tokenBase.decimals)
+    pair.reserveBase = convertTokenToDecimal(reserves.value.value0, tokenBase.decimals)
+    pair.reserveQuote = convertTokenToDecimal(reserves.value.value1, tokenQuote.decimals)
+  }
 }
 
 /**
