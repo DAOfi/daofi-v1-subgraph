@@ -1,8 +1,8 @@
-# DAOfi V1 Subgraph
+# DAOfi V1 Subgraph (forked from https://github.com/Uniswap/uniswap-v2-subgraph)
 
 [DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange using bonding curves on Ethereum.
 
-This subgraph dynamically tracks any pair created by the daofi factory. It tracks of the current state of DAOfi contracts, and contains derived stats for things like historical data and USD prices.
+This subgraph dynamically tracks any pair created by the DAOfi factory. It tracks of the current state of DAOfi contracts, and contains derived stats for things like historical data and USD prices.
 
 - aggregated data across pairs and tokens,
 - data on individual pairs and tokens,
