@@ -10,7 +10,7 @@ dataSources:
     source:
       address: '0xeac9260c59693f180936779451b996b303a0a488'
       abi: Factory
-      startBlock: 12105674
+      startBlock: 12118506
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
@@ -38,7 +38,7 @@ dataSources:
     source:
       address: '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852'
       abi: UniswapPair
-      startBlock: 12105674
+      startBlock: 12118506
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
