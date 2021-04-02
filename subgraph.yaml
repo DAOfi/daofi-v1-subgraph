@@ -36,7 +36,9 @@ dataSources:
     name: UniswapPair
     network: mainnet
     source:
+      address: '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852'
       abi: UniswapPair
+      startBlock: 12105674
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4

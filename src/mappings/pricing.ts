@@ -21,7 +21,8 @@ export function getEthPriceInUSD(): BigDecimal {
 // whitelist [base token, pair address]
 let WHITELIST: string[][] = [
   ['0xf7e8213cbcc88b64e4943b6aa9bd9752ac08b4f4', '0x3e0b2815ac13bbd73ca865b5ff183ec8dbbb98d3'],// IDXM
-  ['0x21a870c7fce1bce5d88bdf845ac332c76204a9a0', '0x2c98813dea4aa80f0f160748450f0abfd51fb558']// REFRACTION
+  ['0x21a870c7fce1bce5d88bdf845ac332c76204a9a0', '0x2c98813dea4aa80f0f160748450f0abfd51fb558'],// REFRACTION
+  ['0x8cfd5ae0b3743da26cd36f86e77c301ede82009d', '0x9dB294D99BD3eAd20BCDdBfa65a9182c9ce89751'],// 3SEEDS
 ]
 
 function findETHPair(address: string): string[] {
