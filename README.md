@@ -1,8 +1,9 @@
-# DAOfi V1 Subgraph
+# DAOfi V1 Subgraph 
+### (Forked from https://github.com/Uniswap/uniswap-v2-subgraph)
 
-[DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange on Ethereum.
+[DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange using bonding curves on Ethereum.
 
-This subgraph dynamically tracks any pair created by the daofi factory. It tracks of the current state of DAOfi contracts, and contains derived stats for things like historical data and USD prices.
+This subgraph dynamically tracks any pair created by the DAOfi factory. It tracks of the current state of DAOfi contracts, and contains derived stats for things like historical data and USD prices.
 
 - aggregated data across pairs and tokens,
 - data on individual pairs and tokens,
@@ -34,7 +35,7 @@ Contains data on a specific pair.
 
 #### Transaction
 
-Every transaction on DAOfi is stored. Each transaction contains an array of mints, burns, and swaps that occured within it.
+Every transaction on DAOfi is stored. Each transaction contains an array of deposits, withdrawals, and swaps that occured within it.
 
 #### Deposit, Swap, Withdraw
 
@@ -44,11 +45,11 @@ These contain specifc information about a transaction. Things like which pair tr
 
 ### Querying Aggregated DAOfi Data
 
-This query fetches aggredated data from all daofi pairs and tokens, to give a view into how much activity is happening within the whole protocol.
+This query fetches aggredated data from all DAOfi pairs and tokens, to give a view into how much activity is happening within the whole protocol.
 
 ```graphql
 {
-  daofiFactories(first: 1) {
+  factories(first: 1) {
     pairCount
     totalVolumeUSD
     totalLiquidityUSD
