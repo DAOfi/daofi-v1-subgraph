@@ -1,6 +1,6 @@
 # DAOfi V1 Subgraph
 
-[DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange on Ethereum.
+[DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange using bonding curves on Ethereum.
 
 This subgraph dynamically tracks any pair created by the daofi factory. It tracks of the current state of DAOfi contracts, and contains derived stats for things like historical data and USD prices.
 
