@@ -34,7 +34,7 @@ Contains data on a specific pair.
 
 #### Transaction
 
-Every transaction on DAOfi is stored. Each transaction contains an array of mints, burns, and swaps that occured within it.
+Every transaction on DAOfi is stored. Each transaction contains an array of deposits, withdrawals, and swaps that occured within it.
 
 #### Deposit, Swap, Withdraw
 
@@ -48,7 +48,7 @@ This query fetches aggredated data from all daofi pairs and tokens, to give a vi
 
 ```graphql
 {
-  daofiFactories(first: 1) {
+  factories(first: 1) {
     pairCount
     totalVolumeUSD
     totalLiquidityUSD
