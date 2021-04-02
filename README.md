@@ -1,4 +1,5 @@
-# DAOfi V1 Subgraph (forked from https://github.com/Uniswap/uniswap-v2-subgraph)
+# DAOfi V1 Subgraph 
+## (Forked from https://github.com/Uniswap/uniswap-v2-subgraph)
 
 [DAOfi](https://daofi.org/) is a decentralized protocol for automated token exchange using bonding curves on Ethereum.
 
