@@ -7,10 +7,7 @@ import {
   FACTORY_ADDRESS,
   ZERO_BD,
   ZERO_BI,
-  fetchTokenSymbol,
-  fetchTokenName,
-  fetchTokenDecimals,
-  fetchTokenTotalSupply
+  createToken,
 } from './helpers'
 
 export function handleNewPair(event: PairCreated): void {
@@ -39,38 +36,12 @@ export function handleNewPair(event: PairCreated): void {
   factory.pairCount = factory.pairCount + 1
 
   // create the tokens
+  createToken(event.params.baseToken.toHexString())
+  createToken(event.params.quoteToken.toHexString())
   let tokenBase = Token.load(event.params.baseToken.toHexString())
   let tokenQuote = Token.load(event.params.quoteToken.toHexString())
-
-  // fetch info if null
-  if (tokenBase == null) {
-    tokenBase = new Token(event.params.baseToken.toHexString())
-    tokenBase.symbol = fetchTokenSymbol(event.params.baseToken)
-    tokenBase.name = fetchTokenName(event.params.baseToken)
-    tokenBase.totalSupply = fetchTokenTotalSupply(event.params.baseToken)
-    tokenBase.decimals = fetchTokenDecimals(event.params.baseToken)
-    tokenBase.derivedETH = ZERO_BD
-    tokenBase.tradeVolume = ZERO_BD
-    tokenBase.tradeVolumeUSD = ZERO_BD
-    tokenBase.totalLiquidity = ZERO_BD
-    tokenBase.txCount = ZERO_BI
-  }
-
-  // fetch info if null
-  if (tokenQuote == null) {
-    tokenQuote = new Token(event.params.quoteToken.toHexString())
-    tokenQuote.symbol = fetchTokenSymbol(event.params.quoteToken)
-    tokenQuote.name = fetchTokenName(event.params.quoteToken)
-    tokenQuote.totalSupply = fetchTokenTotalSupply(event.params.quoteToken)
-    tokenQuote.decimals = fetchTokenDecimals(event.params.quoteToken)
-    tokenQuote.derivedETH = ZERO_BD
-    tokenQuote.tradeVolume = ZERO_BD
-    tokenQuote.tradeVolumeUSD = ZERO_BD
-    tokenQuote.totalLiquidity = ZERO_BD
-    tokenQuote.txCount = ZERO_BI
-  }
-
   let pair = new Pair(event.params.pair.toHexString()) as Pair
+
   pair.tokenBase = tokenBase.id
   pair.tokenQuote = tokenQuote.id
   pair.pairOwner = event.params.pairOwner

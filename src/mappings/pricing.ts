@@ -1,7 +1,7 @@
 /* eslint-disable prefer-const */
 import { Pair, Token, UniswapPair, Bundle } from '../types/schema'
-import { BigDecimal, Address, BigInt } from '@graphprotocol/graph-ts/index'
-import { convertTokenToDecimal, ZERO_BD, ONE_BD } from './helpers'
+import { BigDecimal, Address, log } from '@graphprotocol/graph-ts/index'
+import { createToken, convertTokenToDecimal, ZERO_BD, ONE_BD } from './helpers'
 import { Pair as PairContract } from '../types/templates/Pair/Pair'
 
 const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
@@ -23,6 +23,7 @@ let WHITELIST: string[][] = [
   ['0xf7e8213cbcc88b64e4943b6aa9bd9752ac08b4f4', '0x3e0b2815ac13bbd73ca865b5ff183ec8dbbb98d3'],// IDXM
   ['0x21a870c7fce1bce5d88bdf845ac332c76204a9a0', '0x2c98813dea4aa80f0f160748450f0abfd51fb558'],// REFRACTION
   ['0x8cfd5ae0b3743da26cd36f86e77c301ede82009d', '0x9dB294D99BD3eAd20BCDdBfa65a9182c9ce89751'],// 3SEEDS
+  ['0x5d1ec402c14f48a223341c3f3483f3838c32ff43', '0x82513d6c0e9d374780cb170bd261057cbb47d2cf'],// BORGEOUS
 ]
 
 function findETHPair(address: string): string[] {
@@ -48,6 +49,7 @@ export function findEthPerToken(token: Token | null): BigDecimal {
   if (ethPairInfo.length) {
     let pair = Pair.load(ethPairInfo[1])
     let pairContract = PairContract.bind(Address.fromString(ethPairInfo[1]))
+    createToken(pair.tokenQuote)
     let tokenQuote = Token.load(pair.tokenQuote)
     let price = pairContract.try_price()
     if (!price.reverted) {
@@ -57,6 +59,8 @@ export function findEthPerToken(token: Token | null): BigDecimal {
       if (pair.tokenQuote == token.id) {
         return BigDecimal.fromString('1').div(convertTokenToDecimal(pairContract.price(), tokenQuote.decimals))
       }
+    } else {
+      log.error('try_price REVERTED', [])
     }
   }
 
@@ -77,6 +81,8 @@ export function updatePair(pair: Pair | null): void {
     pair.supply = convertTokenToDecimal(supply.value, tokenBase.decimals)
     pair.reserveBase = convertTokenToDecimal(reserves.value.value0, tokenBase.decimals)
     pair.reserveQuote = convertTokenToDecimal(reserves.value.value1, tokenQuote.decimals)
+  } else {
+    log.error('updatePair REVERTED', [])
   }
 }
 
@@ -97,7 +103,7 @@ export function getTrackedVolumeUSD(
   let priceBase = tokenBase.derivedETH.times(bundle.ethPrice)
   let priceQuote = tokenQuote.derivedETH.times(bundle.ethPrice)
   let ethPair = findETHPair(tokenBase.id)
-  if (ethPair.length && ethPair[1] === tokenQuote.id) {
+  if (ethPair.length && ethPair[1] == tokenQuote.id) {
     return tokenAmountBase.times(priceBase)
   }
 

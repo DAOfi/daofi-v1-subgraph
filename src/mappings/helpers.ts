@@ -140,6 +140,24 @@ export function createUser(address: Address): void {
   }
 }
 
+export function createToken(tokenAddr: string): void {
+  let token = Token.load(tokenAddr)
+  if (token == null) {
+    let tokenAddress = Address.fromString(tokenAddr)
+    token = new Token(tokenAddr)
+    token.symbol = fetchTokenSymbol(tokenAddress)
+    token.name = fetchTokenName(tokenAddress)
+    token.totalSupply = fetchTokenTotalSupply(tokenAddress)
+    token.decimals = fetchTokenDecimals(tokenAddress)
+    token.derivedETH = ZERO_BD
+    token.tradeVolume = ZERO_BD
+    token.tradeVolumeUSD = ZERO_BD
+    token.totalLiquidity = ZERO_BD
+    token.txCount = ZERO_BI
+    token.save()
+  }
+}
+
 export function createTokensFromUniswapPair(address: string): string[] {
   let token0Addr: string = null, token1Addr: string = null
   // USDT
@@ -148,36 +166,8 @@ export function createTokensFromUniswapPair(address: string): string[] {
     token1Addr = '0xdac17f958d2ee523a2206206994597c13d831ec7'
   }
   if (token0Addr !== null && token1Addr !== null) {
-    let token0 = Token.load(token0Addr)
-    let token1 = Token.load(token1Addr)
-    if (token0 == null) {
-      let tokenAddress = Address.fromString(token0Addr)
-      token0 = new Token(token0Addr)
-      token0.symbol = fetchTokenSymbol(tokenAddress)
-      token0.name = fetchTokenName(tokenAddress)
-      token0.totalSupply = fetchTokenTotalSupply(tokenAddress)
-      token0.decimals = fetchTokenDecimals(tokenAddress)
-      token0.derivedETH = ZERO_BD
-      token0.tradeVolume = ZERO_BD
-      token0.tradeVolumeUSD = ZERO_BD
-      token0.totalLiquidity = ZERO_BD
-      token0.txCount = ZERO_BI
-      token0.save()
-    }
-    if (token1 == null) {
-      let tokenAddress = Address.fromString(token1Addr)
-      token1 = new Token(token1Addr)
-      token1.symbol = fetchTokenSymbol(tokenAddress)
-      token1.name = fetchTokenName(tokenAddress)
-      token1.totalSupply = fetchTokenTotalSupply(tokenAddress)
-      token1.decimals = fetchTokenDecimals(tokenAddress)
-      token1.derivedETH = ZERO_BD
-      token1.tradeVolume = ZERO_BD
-      token1.tradeVolumeUSD = ZERO_BD
-      token1.totalLiquidity = ZERO_BD
-      token1.txCount = ZERO_BI
-      token1.save()
-    }
+    createToken(token0Addr)
+    createToken(token1Addr)
     return [token0Addr, token1Addr]
   }
   return [null, null]
