@@ -22,7 +22,7 @@ export function getEthPriceInUSD(): BigDecimal {
 let WHITELIST: string[][] = [
   ['0xf7e8213cbcc88b64e4943b6aa9bd9752ac08b4f4', '0x3e0b2815ac13bbd73ca865b5ff183ec8dbbb98d3'],// IDXM
   ['0x21a870c7fce1bce5d88bdf845ac332c76204a9a0', '0x2c98813dea4aa80f0f160748450f0abfd51fb558'],// REFRACTION
-  ['0x8cfd5ae0b3743da26cd36f86e77c301ede82009d', '0x9dB294D99BD3eAd20BCDdBfa65a9182c9ce89751'],// 3SEEDS
+  ['0x8cfd5ae0b3743da26cd36f86e77c301ede82009d', '0x9db294d99bd3ead20bcddbfa65a9182c9ce89751'],// 3SEEDS
   ['0x5d1ec402c14f48a223341c3f3483f3838c32ff43', '0x82513d6c0e9d374780cb170bd261057cbb47d2cf'],// BORGEOUS
 ]
 
@@ -49,7 +49,6 @@ export function findEthPerToken(token: Token | null): BigDecimal {
   if (ethPairInfo.length) {
     let pair = Pair.load(ethPairInfo[1])
     let pairContract = PairContract.bind(Address.fromString(ethPairInfo[1]))
-    createToken(pair.tokenQuote)
     let tokenQuote = Token.load(pair.tokenQuote)
     let price = pairContract.try_price()
     if (!price.reverted) {

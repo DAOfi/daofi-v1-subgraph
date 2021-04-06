@@ -27,10 +27,13 @@ import {
   createLiquidityPosition,
   ZERO_BD,
   createLiquiditySnapshot,
+  createToken,
 } from './helpers'
 
 export function handleSwap(event: Swap): void {
   let pair = Pair.load(event.address.toHexString())
+  createToken(pair.tokenBase)
+  createToken(pair.tokenQuote)
   let tokenBase = Token.load(pair.tokenBase)
   let tokenQuote = Token.load(pair.tokenQuote)
   let tokenIn = Token.load(event.params.tokenIn.toHexString())
@@ -253,6 +256,8 @@ export function handleDeposit(event: Deposit): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString())
   let pair = Pair.load(event.address.toHex())
   let factory = Factory.load(FACTORY_ADDRESS)
+  createToken(pair.tokenBase)
+  createToken(pair.tokenQuote)
   let tokenBase = Token.load(pair.tokenBase)
   let tokenQuote = Token.load(pair.tokenQuote)
   let tokenBaseAmount = convertTokenToDecimal(event.params.amountBase, tokenBase.decimals)
@@ -335,6 +340,8 @@ export function handleWithdraw(event: Withdraw): void {
     transaction.save()
   }
   let pair = Pair.load(event.address.toHex())
+  createToken(pair.tokenBase)
+  createToken(pair.tokenQuote)
   let factory = Factory.load(FACTORY_ADDRESS)
   let tokenBase = Token.load(pair.tokenBase)
   let tokenQuote = Token.load(pair.tokenQuote)
@@ -421,6 +428,8 @@ export function handleWithdrawFees(event: WithdrawFees): void {
     transaction.save()
   }
   let pair = Pair.load(event.address.toHex())
+  createToken(pair.tokenBase)
+  createToken(pair.tokenQuote)
   let tokenBase = Token.load(pair.tokenBase)
   let tokenQuote = Token.load(pair.tokenQuote)
   let tokenBaseAmount = convertTokenToDecimal(event.params.amountBase, tokenBase.decimals)
